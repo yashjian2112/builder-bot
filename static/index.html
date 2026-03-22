@@ -370,6 +370,11 @@
   .bubble ul, .bubble ol { padding-left: 18px; margin: 5px 0; }
   .bubble h1,.bubble h2,.bubble h3 { margin: 7px 0 3px; color: #fff; }
   .bubble h1 { font-size: 15px; } .bubble h2 { font-size: 14px; } .bubble h3 { font-size: 13.5px; }
+  .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+  .bubble .md-table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12.5px; }
+  .bubble .md-table th, .bubble .md-table td { border: 1px solid var(--border); padding: 5px 10px; text-align: left; }
+  .bubble .md-table thead th { background: #1a1a2e; color: #fff; font-weight: 600; }
+  .bubble .md-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.03); }
 
   /* ── Right Panel — Project Structure ── */
   #structure-panel {
@@ -966,15 +971,58 @@ function getUser() { return currentUser; }
 const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 function md(text) {
-  return text
-    .replace(/```([\s\S]*?)```/g, (_,c)=>`<pre><code>${esc(c.trim())}</code></pre>`)
-    .replace(/`([^`]+)`/g, (_,c)=>`<code>${esc(c)}</code>`)
-    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
-    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
-    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
-    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
-    .replace(/^- (.+)$/gm,'<li>$1</li>')
-    .replace(/\n/g,'<br>');
+  // Protect code blocks
+  const saved = [];
+  text = text.replace(/```([\s\S]*?)```/g, (_, c) => {
+    saved.push(`<pre><code>${esc(c.trim())}</code></pre>`);
+    return '\x00BLOCK' + (saved.length - 1) + '\x00';
+  });
+
+  // Tables: match consecutive lines that start with |
+  text = text.replace(/((?:\|[^\n]+\n?)+)/g, tableBlock => {
+    const lines = tableBlock.trim().split('\n').map(l => l.trim());
+    const dataLines = lines.filter(l => !/^\|[\s:\-|]+\|$/.test(l));
+    if (dataLines.length < 1) return tableBlock;
+    const rows = dataLines.map(l =>
+      l.split('|').filter((_, i, a) => i > 0 && i < a.length - 1).map(c => c.trim())
+    );
+    let html = '<table class="md-table"><thead><tr>' +
+      rows[0].map(c => `<th>${c}</th>`).join('') + '</tr></thead>';
+    if (rows.length > 1) {
+      html += '<tbody>' + rows.slice(1).map(r =>
+        '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>'
+      ).join('') + '</tbody>';
+    }
+    return html + '</table>';
+  });
+
+  // Horizontal rules
+  text = text.replace(/^---+$/gm, '<hr>');
+
+  // Inline code
+  text = text.replace(/`([^`]+)`/g, (_, c) => `<code>${esc(c)}</code>`);
+
+  // Bold
+  text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+  // Headings
+  text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  // List items
+  text = text.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+
+  // Numbered lists
+  text = text.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+  // Newlines to <br>
+  text = text.replace(/\n/g, '<br>');
+
+  // Restore code blocks
+  text = text.replace(/\x00BLOCK(\d+)\x00/g, (_, i) => saved[+i]);
+
+  return text;
 }
 
 function scroll() {
@@ -1287,9 +1335,10 @@ function _appendStreamChunk(chunk) {
   scroll();
 }
 
-function _endStreamMsg(phase) {
+function _endStreamMsg(phase, cleanReply) {
   if (_streamBubble) {
-    _streamBubble.innerHTML = md(_streamRaw);
+    // Prefer server-provided clean reply (strips <UI_MOCKUP> etc); fall back to raw
+    _streamBubble.innerHTML = md(cleanReply || _streamRaw);
     _streamBubble = null;
   }
   if (phase) updatePhase(phase);
@@ -1309,7 +1358,7 @@ function handleMsg(m) {
       _appendStreamChunk(m.content);
       break;
     case 'stream_end':
-      _endStreamMsg(m.phase);
+      _endStreamMsg(m.phase, m.reply);
       // signals-driven phase UI updates happen server-side; session reload covers the rest
       break;
     case 'thinking':

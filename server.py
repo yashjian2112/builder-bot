@@ -386,6 +386,7 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, token: str = Query(
                     await pool.send(session_id, {
                         "type": "stream_end",
                         "phase": phase,
+                        "reply": reply,
                     })
 
                     if signals.get("need_folder"):
@@ -603,7 +604,7 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, token: str = Query(
                             break
 
                     add_message(session_id, "assistant", reply)
-                    await pool.send(session_id, {"type": "stream_end", "phase": rej_phase})
+                    await pool.send(session_id, {"type": "stream_end", "phase": rej_phase, "reply": reply})
 
                     # Re-check for new mockup/plan in revised response
                     if signals.get("mockup_html"):
