@@ -44,7 +44,6 @@
     display: flex; flex-direction: column; align-items: center; gap: 0;
     text-align: center;
   }
-  /* SMXDrives text logo in login */
   .smx-logo-login {
     display: flex; flex-direction: column; align-items: center;
     margin-bottom: 28px; line-height: 1;
@@ -59,24 +58,19 @@
     font-size: 13px; font-weight: 700; letter-spacing: 4px;
     color: #e53535; text-transform: uppercase; margin-top: 3px;
   }
-  #login-box h2 {
-    font-size: 18px; font-weight: 600; color: var(--text);
-    margin-bottom: 6px;
-  }
-  #login-box p {
-    font-size: 13px; color: var(--muted); margin-bottom: 24px; line-height: 1.5;
-  }
-  #login-name-input {
+  #login-box h2 { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  #login-box p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+  .login-field {
     width: 100%; background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 10px; color: var(--text);
     padding: 12px 16px; font-size: 14px;
     font-family: var(--font); outline: none;
-    transition: border-color .15s;
-    margin-bottom: 12px;
+    transition: border-color .15s; margin-bottom: 10px;
   }
-  #login-name-input:focus { border-color: var(--accent); }
-  #login-name-input::placeholder { color: var(--muted); }
+  .login-field:focus { border-color: var(--accent); }
+  .login-field::placeholder { color: var(--muted); }
+  #login-error { color: var(--error); font-size: 12px; min-height: 18px; margin-bottom: 8px; width: 100%; text-align: left; }
   #login-start-btn {
     width: 100%; padding: 13px;
     background: #e53535; color: #fff;
@@ -85,8 +79,104 @@
     cursor: pointer; letter-spacing: .3px;
     transition: opacity .15s, transform .1s;
   }
-  #login-start-btn:hover { opacity: .88; }
+  #login-start-btn:hover:not(:disabled) { opacity: .88; }
   #login-start-btn:active { transform: scale(.98); }
+  #login-start-btn:disabled { opacity: .5; cursor: default; }
+
+  /* ── Admin Modal ── */
+  #admin-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); z-index: 10000;
+    align-items: center; justify-content: center;
+  }
+  #admin-modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px;
+    width: 500px; max-width: 94vw; max-height: 85vh;
+    overflow-y: auto; display: flex; flex-direction: column; gap: 0;
+  }
+  #admin-modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+  .admin-user-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+  }
+  .admin-user-info { flex: 1; display: flex; align-items: center; gap: 8px; }
+  .admin-user-name { font-size: 13px; font-weight: 500; }
+  .admin-role-badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 20px; border: 1px solid;
+  }
+  .admin-role-badge.admin  { color: #f59e0b; border-color: #f59e0b; }
+  .admin-role-badge.member { color: var(--muted); border-color: var(--border); }
+  .admin-actions { display: flex; align-items: center; gap: 6px; }
+  .role-select {
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; padding: 3px 6px; font-size: 11px;
+  }
+  .admin-del-btn {
+    background: none; border: 1px solid var(--error);
+    color: var(--error); border-radius: 6px;
+    padding: 3px 8px; font-size: 11px; cursor: pointer;
+  }
+  .admin-del-btn:hover { background: rgba(239,68,68,.12); }
+  #admin-add-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+  #admin-add-section h4 { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; }
+  .admin-field {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    padding: 9px 12px; font-size: 13px; font-family: var(--font); outline: none;
+    margin-bottom: 8px; transition: border-color .15s;
+  }
+  .admin-field:focus { border-color: var(--accent); }
+  .admin-field::placeholder { color: var(--muted); }
+  #admin-role-select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 9px 12px;
+    font-size: 13px; margin-bottom: 8px;
+  }
+  #admin-error { color: var(--error); font-size: 12px; min-height: 16px; margin-bottom: 6px; }
+  #admin-create-btn {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; padding: 10px 20px; font-size: 13px;
+    font-weight: 600; cursor: pointer;
+  }
+  #admin-create-btn:hover { opacity: .85; }
+
+  /* ── Terminal Block (Claude Code-style) ── */
+  .terminal-block {
+    margin: 6px 0 10px 40px; max-width: 640px;
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid #2a2a3a;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    font-family: 'SF Mono','Fira Code','Cascadia Code',monospace; font-size: 11.5px;
+  }
+  .term-header {
+    background: #16161f; padding: 9px 14px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid #2a2a3a;
+  }
+  .term-traffic { display: flex; gap: 5px; flex-shrink: 0; }
+  .traf { width: 11px; height: 11px; border-radius: 50%; }
+  .traf.red    { background: #ff5f57; }
+  .traf.yellow { background: #febc2e; }
+  .traf.green  { background: #28c841; }
+  .term-title { font-size: 11px; color: #8888a8; flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .term-body {
+    background: #0a0a12; padding: 12px 14px;
+    min-height: 60px; max-height: 280px;
+    overflow-y: auto; line-height: 1.6;
+    color: #bfefbf;
+  }
+  .term-line { padding: 0; }
+  .term-line.err  { color: #ff7b7b; }
+  .term-line.ok   { color: #69db7c; }
+  .term-line.info { color: #74c0fc; }
+  .term-line.tool { color: #c8a7ff; }
+  .term-line.dim  { color: #6666a0; }
+  .term-cursor {
+    display: inline-block; color: #69db7c; font-weight: 700;
+    animation: termBlink 1s step-end infinite;
+  }
+  @keyframes termBlink { 0%,100%{opacity:1} 50%{opacity:0} }
 
   /* ── Left Sidebar ── */
   #sidebar {
@@ -432,16 +522,40 @@
 <div id="login-overlay">
   <div id="login-box">
     <div class="smx-logo-login">
-      <div class="smx-top">
-        <span class="smx-sm">SM</span><span class="smx-x">X</span>
-      </div>
+      <div class="smx-top"><span class="smx-sm">SM</span><span class="smx-x">X</span></div>
       <span class="smx-drives">DRIVES</span>
     </div>
-    <h2>Welcome to SMXDrives AI</h2>
-    <p>Enter your name to get started.<br>Your conversations will be saved separately.</p>
-    <input type="text" id="login-name-input" placeholder="Your name..." maxlength="40"
-      onkeydown="if(event.key==='Enter') doLogin()" autocomplete="off" />
-    <button id="login-start-btn" onclick="doLogin()">Start Building</button>
+    <h2 id="login-heading">Welcome to SMXDrives AI</h2>
+    <p id="login-subtext">Sign in to continue building amazing projects.</p>
+    <input type="hidden" id="login-mode" value="login">
+    <input type="text" id="login-username" class="login-field" placeholder="Username"
+      autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
+    <input type="password" id="login-password" class="login-field" placeholder="Password"
+      autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="login-error"></div>
+    <button id="login-start-btn" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+<!-- Admin Modal -->
+<div id="admin-modal-overlay">
+  <div id="admin-modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="margin:0">User Management</h3>
+      <button onclick="closeAdminPanel()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1;padding:0 4px">&times;</button>
+    </div>
+    <div id="admin-users-list"></div>
+    <div id="admin-add-section">
+      <h4>Add New User</h4>
+      <input id="new-username" class="admin-field" type="text" placeholder="Username" autocomplete="off">
+      <input id="new-password" class="admin-field" type="password" placeholder="Password (min 4 chars)">
+      <select id="admin-role-select">
+        <option value="member">Member</option>
+        <option value="admin">Admin</option>
+      </select>
+      <div id="admin-error"></div>
+      <button id="admin-create-btn" onclick="createUser()">Create User</button>
+    </div>
   </div>
 </div>
 
@@ -529,14 +643,14 @@
   <div id="session-list"></div>
 
   <div id="sidebar-foot">
-    <div style="display:flex;align-items:center;gap:5px">
-      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success)"></span>
-      Server running
-    </div>
+    <button id="admin-btn" class="sidebar-btn secondary" style="display:none;margin:0 0 6px" onclick="openAdminPanel()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><circle cx="19" cy="7" r="2" fill="currentColor" stroke="none"/><path d="M22 9V5M20 7h4" stroke-width="2.5"/></svg>
+      Manage Users
+    </button>
     <div id="user-info-row">
       <div class="user-avatar-sm" id="user-avatar-sm">?</div>
       <span id="user-name-label">Not logged in</span>
-      <button id="switch-user-btn" onclick="switchUser()" title="Switch user">Switch</button>
+      <button id="switch-user-btn" onclick="switchUser()" title="Sign out">Sign out</button>
     </div>
   </div>
 </div>
@@ -618,6 +732,7 @@
 </div>
 
 <script>
+'use strict';
 // ── SVG Icons ──────────────────────────────────────────
 const IC = {
   bot:      `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v6h6V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="16.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="16.5" r="1.2" fill="currentColor" stroke="none"/></svg>`,
@@ -640,41 +755,167 @@ const IC = {
 };
 
 // ── State ──────────────────────────────────────────────
-let ws = null, sessionId = null, execLog = null, progressWrap = null;
+let ws = null, sessionId = null, progressWrap = null, _termEl = null;
 let taskTotal = 0, taskDone = 0;
-let projectStructure = {};   // path → type (file/dir)
+let projectStructure = {};
 let taskPlan = [];
-let _wasConnected = false;   // Task 4: flicker fix flag
+let _wasConnected = false;
+let _msgCount = 0;
 
-// ── User / Login ───────────────────────────────────────
-let currentUser = '';
+// ── Auth state ─────────────────────────────────────────
+let currentUser = '', currentToken = '', currentRole = '';
 
-function getUser() {
-  return localStorage.getItem('smx_user') || '';
+function authHeaders() {
+  const tok = localStorage.getItem('smx_token') || '';
+  return { 'Authorization': `Bearer ${tok}`, 'Content-Type': 'application/json' };
+}
+function authGet() {
+  const tok = localStorage.getItem('smx_token') || '';
+  return { 'Authorization': `Bearer ${tok}` };
 }
 
-function doLogin() {
-  const input = document.getElementById('login-name-input');
-  const name = input.value.trim();
-  if (!name) { input.focus(); return; }
-  localStorage.setItem('smx_user', name);
-  currentUser = name;
-  document.getElementById('login-overlay').classList.remove('open');
-  updateUserUI();
-  initApp();
+// ── Auth flow ──────────────────────────────────────────
+async function checkAuth() {
+  const token = localStorage.getItem('smx_token');
+  if (token) {
+    const res = await fetch('/api/sessions', { headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) {
+      currentToken = token;
+      currentUser  = localStorage.getItem('smx_user') || '';
+      currentRole  = localStorage.getItem('smx_role') || 'member';
+      updateUserUI();
+      initApp();
+      return;
+    }
+    clearAuth();
+  }
+  const status = await fetch('/api/auth/status').then(r => r.json()).catch(() => ({ has_users: true }));
+  showLoginScreen(status.has_users ? 'login' : 'setup');
+}
+
+function clearAuth() {
+  ['smx_token','smx_user','smx_role'].forEach(k => localStorage.removeItem(k));
+  currentToken = ''; currentUser = ''; currentRole = '';
+}
+
+function showLoginScreen(mode) {
+  document.getElementById('login-overlay').classList.add('open');
+  document.getElementById('login-mode').value = mode;
+  document.getElementById('login-heading').textContent  = mode === 'setup' ? 'Create Admin Account' : 'Welcome to SMXDrives AI';
+  document.getElementById('login-subtext').textContent  = mode === 'setup' ? 'First time setup — create your admin account.' : 'Sign in to continue building.';
+  document.getElementById('login-start-btn').textContent = mode === 'setup' ? 'Create Account' : 'Sign In';
+  document.getElementById('login-error').textContent = '';
+  setTimeout(() => document.getElementById('login-username').focus(), 120);
+}
+
+async function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const mode     = document.getElementById('login-mode').value;
+  const errEl    = document.getElementById('login-error');
+  const btn      = document.getElementById('login-start-btn');
+  errEl.textContent = '';
+  if (!username || !password) { errEl.textContent = 'Username and password required'; return; }
+  btn.disabled = true; btn.textContent = 'Please wait…';
+  try {
+    const endpoint = mode === 'setup' ? '/api/auth/setup' : '/api/auth/login';
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      errEl.textContent = e.detail || 'Authentication failed';
+      btn.disabled = false; btn.textContent = mode === 'setup' ? 'Create Account' : 'Sign In';
+      return;
+    }
+    const data = await res.json();
+    localStorage.setItem('smx_token', data.token);
+    localStorage.setItem('smx_user',  data.username);
+    localStorage.setItem('smx_role',  data.role);
+    currentToken = data.token; currentUser = data.username; currentRole = data.role;
+    document.getElementById('login-overlay').classList.remove('open');
+    updateUserUI();
+    initApp();
+  } catch(e) {
+    errEl.textContent = 'Connection error — try again';
+    btn.disabled = false; btn.textContent = mode === 'setup' ? 'Create Account' : 'Sign In';
+  }
 }
 
 function switchUser() {
-  if (!confirm('Switch user? This will reload the page.')) return;
-  localStorage.removeItem('smx_user');
+  if (!confirm('Sign out?')) return;
+  clearAuth();
   location.reload();
 }
 
 function updateUserUI() {
-  const name = currentUser || getUser();
-  document.getElementById('user-name-label').textContent = name || 'Guest';
+  document.getElementById('user-name-label').textContent = currentUser || 'Guest';
   const av = document.getElementById('user-avatar-sm');
-  av.textContent = (name || 'G').charAt(0).toUpperCase();
+  av.textContent = (currentUser || 'G').charAt(0).toUpperCase();
+  const adminBtn = document.getElementById('admin-btn');
+  if (adminBtn) adminBtn.style.display = currentRole === 'admin' ? 'flex' : 'none';
+}
+
+// ── Admin Panel ────────────────────────────────────────
+async function openAdminPanel() {
+  document.getElementById('admin-modal-overlay').style.display = 'flex';
+  await loadAdminUsers();
+}
+function closeAdminPanel() {
+  document.getElementById('admin-modal-overlay').style.display = 'none';
+}
+async function loadAdminUsers() {
+  const res = await fetch('/api/users', { headers: authGet() });
+  if (!res.ok) return;
+  const users = await res.json();
+  const list  = document.getElementById('admin-users-list');
+  list.innerHTML = users.length ? users.map(u => `
+    <div class="admin-user-row">
+      <div class="admin-user-info">
+        <span class="admin-user-name">${esc(u.username)}</span>
+        <span class="admin-role-badge ${u.role}">${u.role}</span>
+      </div>
+      <div class="admin-actions">
+        ${u.username !== currentUser ? `
+          <select class="role-select" onchange="updateUserRole('${esc(u.username)}',this.value)">
+            <option value="member" ${u.role==='member'?'selected':''}>Member</option>
+            <option value="admin"  ${u.role==='admin' ?'selected':''}>Admin</option>
+          </select>
+          <button class="admin-del-btn" onclick="adminDeleteUser('${esc(u.username)}')">Remove</button>
+        ` : `<span style="font-size:11px;color:var(--muted)">(you)</span>`}
+      </div>
+    </div>`).join('') : '<p style="color:var(--muted);font-size:12px">No users yet.</p>';
+}
+async function updateUserRole(username, role) {
+  await fetch(`/api/users/${encodeURIComponent(username)}/role`, {
+    method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ role }),
+  });
+  await loadAdminUsers();
+}
+async function adminDeleteUser(username) {
+  if (!confirm(`Remove user "${username}"?`)) return;
+  await fetch(`/api/users/${encodeURIComponent(username)}`, { method: 'DELETE', headers: authGet() });
+  await loadAdminUsers();
+}
+async function createUser() {
+  const un  = document.getElementById('new-username').value.trim();
+  const pw  = document.getElementById('new-password').value;
+  const rol = document.getElementById('admin-role-select').value;
+  const err = document.getElementById('admin-error');
+  err.textContent = '';
+  if (!un || !pw) { err.textContent = 'Username and password required'; return; }
+  const res = await fetch('/api/users', {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({ username: un, password: pw, role: rol }),
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    err.textContent = e.detail || 'Failed to create user'; return;
+  }
+  document.getElementById('new-username').value = '';
+  document.getElementById('new-password').value = '';
+  await loadAdminUsers();
 }
 
 // ── Mobile Sidebar ─────────────────────────────────────
@@ -686,6 +927,7 @@ function closeMobileSidebar() {
   document.getElementById('sidebar').classList.remove('mobile-open');
   document.getElementById('sidebar-backdrop').classList.remove('open');
 }
+function getUser() { return currentUser; }
 
 // ── Utilities ──────────────────────────────────────────
 const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -872,21 +1114,60 @@ function sendReject(id) {
   ws.send(JSON.stringify({type:'approval',approval_id:id,decision:'reject',feedback:fb}));
 }
 
-// Exec log
-function getLog() {
-  if (!execLog) {
-    execLog = document.createElement('div');
-    execLog.className = 'exec-log';
-    document.getElementById('chat-area').appendChild(execLog);
+// ── Claude Code-style Terminal ─────────────────────────
+function getTerminal(title) {
+  if (!_termEl || !document.getElementById('chat-area').contains(_termEl)) {
+    _termEl = document.createElement('div');
+    _termEl.className = 'terminal-block';
+    _termEl.innerHTML = `
+      <div class="term-header">
+        <span class="term-traffic"><span class="traf red"></span><span class="traf yellow"></span><span class="traf green"></span></span>
+        <span class="term-title" id="term-title-txt">${esc(title||'Executing…')}</span>
+      </div>
+      <div class="term-body" id="term-body"></div>`;
+    document.getElementById('chat-area').appendChild(_termEl);
+    addTermCursor();
   }
-  return execLog;
+  if (title) {
+    const t = document.getElementById('term-title-txt');
+    if (t) t.textContent = title;
+  }
+  return _termEl;
 }
-function logLine(msg, type='') {
-  const log = getLog();
-  const d = document.createElement('div');
-  d.className = 'log-line'+(type?' '+type:'');
-  d.textContent = msg;
-  log.appendChild(d); log.scrollTop = log.scrollHeight; scroll();
+function addTermCursor() {
+  const body = document.getElementById('term-body');
+  if (!body) return;
+  const old = body.querySelector('.term-cursor');
+  if (old) old.remove();
+  const c = document.createElement('span');
+  c.className = 'term-cursor'; c.textContent = '▋';
+  body.appendChild(c);
+}
+function termLog(msg, cls) {
+  getTerminal();
+  const body = document.getElementById('term-body');
+  const old = body.querySelector('.term-cursor'); if (old) old.remove();
+  const line = document.createElement('div');
+  line.className = 'term-line' + (cls ? ' ' + cls : '');
+  const lo = msg.toLowerCase();
+  if (!cls) {
+    if (lo.includes('error') || lo.includes('failed') || lo.includes('traceback')) cls = 'err';
+    else if (lo.includes('done') || lo.includes('success') || lo.includes('complete') || msg.startsWith('✓')) cls = 'ok';
+    else if (msg.startsWith('  ›') || msg.startsWith('tool:') || msg.includes('writing') || msg.includes('reading')) cls = 'tool';
+    else if (msg.startsWith('▶') || msg.startsWith('>')) cls = 'info';
+    if (cls) line.className = 'term-line ' + cls;
+  }
+  line.textContent = msg;
+  body.appendChild(line);
+  addTermCursor();
+  body.scrollTop = body.scrollHeight; scroll();
+}
+
+// keep old exec log alias working
+function getLog() { return getTerminal(); }
+function logLine(msg, type) {
+  const map = { error:'err', success:'ok', info:'info' };
+  termLog(msg, map[type]||'');
 }
 
 function getProgress() {
@@ -894,7 +1175,7 @@ function getProgress() {
     progressWrap = document.createElement('div');
     progressWrap.className = 'progress-wrap';
     progressWrap.innerHTML = `
-      <div class="progress-label"><span id="prog-label">Building...</span><span id="prog-ct">0/0</span></div>
+      <div class="progress-label"><span id="prog-label">Building…</span><span id="prog-ct">0/0</span></div>
       <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>`;
     document.getElementById('chat-area').appendChild(progressWrap);
   }
@@ -902,51 +1183,41 @@ function getProgress() {
 }
 function updateProgress(done, total, label) {
   getProgress();
-  const pct = total>0 ? Math.round(done/total*100) : 0;
-  document.getElementById('prog-label').textContent = label||`Task ${done} of ${total}`;
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('prog-label').textContent = label || `Task ${done} of ${total}`;
   document.getElementById('prog-ct').textContent = `${done}/${total}`;
-  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-fill').style.width = pct + '%';
   scroll();
 }
 
 // ── WebSocket ──────────────────────────────────────────
 let _reconnectTimer = null;
-let _reconnectDelay = 3000;   // starts at 3s, backs off up to 15s
+let _reconnectDelay = 3000;
 let _reconnectAttempts = 0;
 
 function connect(sid) {
-  if (ws) { try { ws.close(); } catch(e) {} ws=null; }
-  if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer=null; }
-  sessionId=sid; execLog=null; progressWrap=null;
+  if (ws) { try { ws.close(); } catch(e) {} ws = null; }
+  if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
+  sessionId = sid; progressWrap = null; _termEl = null;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const user = getUser();
-  const userParam = user ? `?username=${encodeURIComponent(user)}` : '';
-  ws = new WebSocket(`${proto}://${location.host}/ws/${sid}${userParam}`);
-
+  const tok   = localStorage.getItem('smx_token') || '';
+  const qs    = tok ? `?token=${encodeURIComponent(tok)}` : (currentUser ? `?username=${encodeURIComponent(currentUser)}` : '');
+  ws = new WebSocket(`${proto}://${location.host}/ws/${sid}${qs}`);
   ws.onopen = () => {
-    _wasConnected = true;
-    _reconnectAttempts = 0;
-    _reconnectDelay = 3000;
+    _wasConnected = true; _reconnectAttempts = 0; _reconnectDelay = 3000;
     setConnected(true);
   };
-
   ws.onclose = () => {
     if (_wasConnected) {
-      // Was connected before — service went to sleep (Render free tier)
       _reconnectAttempts++;
-      // Show helpful message depending on how long we've been trying
-      const msg = _reconnectAttempts <= 2
-        ? 'Reconnecting...'
-        : `Waking server... (${_reconnectAttempts * Math.round(_reconnectDelay/1000)}s)`;
+      const msg = _reconnectAttempts <= 2 ? 'Reconnecting…' : `Waking server… (${_reconnectAttempts * Math.round(_reconnectDelay/1000)}s)`;
       setConnected(false, msg);
     }
-    // Exponential backoff: 3s → 5s → 8s → 12s → 15s max
     _reconnectDelay = Math.min(_reconnectDelay * 1.4, 15000);
-    _reconnectTimer = setTimeout(() => { if(sessionId) connect(sessionId); }, _reconnectDelay);
+    _reconnectTimer = setTimeout(() => { if (sessionId) connect(sessionId); }, _reconnectDelay);
   };
-
   ws.onerror = () => { try { ws.close(); } catch(e) {} };
-  ws.onmessage = ({data}) => { try { handleMsg(JSON.parse(data)); } catch(e) {} };
+  ws.onmessage = ({ data }) => { try { handleMsg(JSON.parse(data)); } catch(e) {} };
 }
 
 function handleFolderSubmit() {
@@ -955,10 +1226,10 @@ function handleFolderSubmit() {
 
 function handleMsg(m) {
   document.getElementById('typing-indicator').classList.remove('visible');
-  switch(m.type) {
+  switch (m.type) {
     case 'message':
       appendMessage(m.role, m.content);
-      if(m.phase) updatePhase(m.phase);
+      if (m.phase) updatePhase(m.phase);
       break;
     case 'thinking':
       document.getElementById('typing-indicator').classList.add('visible');
@@ -967,56 +1238,59 @@ function handleMsg(m) {
       updatePhase(m.phase); break;
     case 'approval_request':
       appendApproval(m);
-      if(m.phase) updatePhase(m.phase); break;
+      if (m.phase) updatePhase(m.phase); break;
     case 'task_start':
-      taskTotal=m.total; taskDone=m.index;
-      updateProgress(m.index,m.total,`Running: ${m.title}`);
-      setTaskStatus(m.task_id,'running');
-      logLine(`> [${m.task_id}] ${m.title}`,'info');
-      // Add files for this task to structure
-      (taskPlan.find(t=>t.id===m.task_id)?.files_to_create||[])
-        .forEach(f=>addToStructure(f,'new'));
+      taskTotal = m.total; taskDone = m.index;
+      _termEl = null; // fresh terminal for this run
+      getTerminal(`[${m.task_id}] ${m.title}`);
+      updateProgress(m.index, m.total, `Running: ${m.title}`);
+      setTaskStatus(m.task_id, 'running');
+      termLog(`▶ ${m.task_id}: ${m.title}`, 'info');
+      (taskPlan.find(t => t.id === m.task_id)?.files_to_create || []).forEach(f => addToStructure(f, 'new'));
       switchTab('tasks');
       break;
     case 'task_log':
-      if(m.message) {
-        const t = m.message.toLowerCase().includes('error')||m.message.toLowerCase().includes('failed')
-          ? 'error' : m.message.toLowerCase().includes('done')||m.message.toLowerCase().includes('success') ? 'success' : '';
-        logLine(m.message, t);
-      }
+      if (m.message) termLog(m.message);
       break;
     case 'task_done':
-      taskDone=m.index+1;
-      setTaskStatus(m.task_id,'done');
-      updateProgress(taskDone,m.total,`Done ${taskDone} of ${m.total} tasks`);
-      logLine(`[done] Task complete`,'success');
+      taskDone = m.index + 1;
+      setTaskStatus(m.task_id, 'done');
+      updateProgress(taskDone, m.total, `Done ${taskDone} of ${m.total} tasks`);
+      termLog(`✓ Task ${m.task_id} complete`, 'ok');
       break;
     case 'session_restored':
-      updatePhase(m.phase||'greeting'); break;
+      updatePhase(m.phase || 'greeting'); break;
     case 'error':
-      appendMessage('bot','Error: '+m.message); break;
+      appendMessage('bot', 'Error: ' + m.message); break;
   }
 }
 
 // ── Sending ────────────────────────────────────────────
-let _msgCount = 0;
 function sendMessage() {
   const inp = document.getElementById('user-input');
   const txt = inp.value.trim();
-  if(!txt||!ws||ws.readyState!==1) return;
-  appendMessage('user',txt);
-  ws.send(JSON.stringify({type:'message',content:txt}));
-  inp.value=''; autoResize(inp);
-  // Auto-name session from first user message — use first 5 words (Task 3)
+  if (!txt || !ws || ws.readyState !== 1) return;
+
+  // Auto-detect GitHub URL → route to folder analysis
+  const ghM = txt.match(/https?:\/\/github\.com\/[\w.\-]+\/[\w.\-]+/i);
+  if (ghM) {
+    appendMessage('user', txt);
+    ws.send(JSON.stringify({ type: 'set_folder', path: ghM[0].replace(/\/$/, ''), source: 'github' }));
+    inp.value = ''; autoResize(inp);
+    return;
+  }
+
+  appendMessage('user', txt);
+  ws.send(JSON.stringify({ type: 'message', content: txt }));
+  inp.value = ''; autoResize(inp);
+
+  // Auto-name session from first message
   _msgCount++;
   if (_msgCount === 1 && sessionId) {
     const words = txt.trim().split(/\s+/);
-    const name = words.slice(0, 5).join(' ') + (words.length > 5 ? '...' : '');
-    const user = getUser();
+    const name  = words.slice(0, 5).join(' ') + (words.length > 5 ? '…' : '');
     fetch(`/api/session/${sessionId}/name`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({name})
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ name }),
     }).then(() => loadSessions(sessionId));
   }
 }
@@ -1079,7 +1353,12 @@ async function onFolderSelected(input) {
   formData.append('paths', paths.join('||'));
 
   try {
-    const res = await fetch(`/api/upload/${sessionId}`, { method: 'POST', body: formData });
+    const tok = localStorage.getItem('smx_token') || '';
+    const res = await fetch(`/api/upload/${sessionId}`, {
+      method: 'POST',
+      headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
+      body: formData,
+    });
     const { upload_dir, file_count } = await res.json();
     document.getElementById('folder-path-input').value = upload_dir;
     document.getElementById('folder-submit-btn').disabled = false;
@@ -1117,57 +1396,48 @@ function openExistingFromOverlay() {
 
 // ── Sessions ───────────────────────────────────────────
 async function startNewSession(cb) {
-  const user = getUser();
-  const userParam = user ? `?username=${encodeURIComponent(user)}` : '';
-  const res = await fetch(`/api/sessions${userParam}`,{method:'POST'});
-  const {session_id} = await res.json();
-  document.getElementById('chat-area').innerHTML='';
-  projectStructure={}; taskPlan=[]; _msgCount=0;
-  document.getElementById('structure-tree').innerHTML=
-    '<div style="color:var(--muted);font-size:11px;padding:8px 0">Structure will appear as files are created...</div>';
-  document.getElementById('tasks-panel').innerHTML='';
+  const res = await fetch('/api/sessions', { method: 'POST', headers: authHeaders() });
+  if (!res.ok) { console.error('startNewSession failed', res.status); return; }
+  const { session_id } = await res.json();
+  document.getElementById('chat-area').innerHTML = '';
+  projectStructure = {}; taskPlan = []; _msgCount = 0; _termEl = null;
+  document.getElementById('structure-tree').innerHTML =
+    '<div style="color:var(--muted);font-size:11px;padding:8px 0">Structure will appear as files are created…</div>';
+  document.getElementById('tasks-panel').innerHTML = '';
   _wasConnected = false;
   connect(session_id);
   loadSessions(session_id);
-  if(cb) cb();
+  if (cb) cb();
 }
 
 async function loadSession(sid) {
-  document.getElementById('chat-area').innerHTML='';
-  projectStructure={}; taskPlan=[]; execLog=null; progressWrap=null;
-  document.getElementById('structure-tree').innerHTML=
-    '<div style="color:var(--muted);font-size:11px;padding:8px 0">Structure will appear as files are created...</div>';
-  document.getElementById('tasks-panel').innerHTML='';
+  document.getElementById('chat-area').innerHTML = '';
+  projectStructure = {}; taskPlan = []; progressWrap = null; _termEl = null; _msgCount = 0;
+  document.getElementById('structure-tree').innerHTML =
+    '<div style="color:var(--muted);font-size:11px;padding:8px 0">Structure will appear as files are created…</div>';
+  document.getElementById('tasks-panel').innerHTML = '';
 
-  const res = await fetch(`/api/session/${sid}`);
+  const res = await fetch(`/api/session/${sid}`, { headers: authGet() });
+  if (!res.ok) return;
   const data = await res.json();
 
-  // Restore chat messages
-  for(const m of (data.history||[])) appendMessage(m.role, m.content);
-  if(data.phase) updatePhase(data.phase);
+  for (const m of (data.history || [])) appendMessage(m.role, m.content);
+  if (data.phase) updatePhase(data.phase);
 
-  // Restore task plan into the right panel
   if (data.task_plan) {
     try {
       const plan = typeof data.task_plan === 'string' ? JSON.parse(data.task_plan) : data.task_plan;
       if (Array.isArray(plan) && plan.length) {
         renderTaskPanel(plan);
-        // Mark completed tasks if session is done/past execution
-        const donePhases = ['complete','executing'];
-        if (donePhases.includes(data.phase)) {
+        if (['complete', 'executing'].includes(data.phase))
           plan.forEach(t => setTaskStatus(t.id, data.phase === 'complete' ? 'done' : 'running'));
-        }
-        // Switch to tasks tab if there's a plan to show
-        if (['awaiting_task_approval','executing','complete'].includes(data.phase)) {
+        if (['awaiting_task_approval', 'executing', 'complete'].includes(data.phase))
           switchTab('tasks');
-        }
       }
-    } catch(e) { console.warn('Could not restore task plan', e); }
+    } catch(e) { console.warn('task plan restore', e); }
   }
 
-  // Reset message count so auto-naming works correctly
-  _msgCount = (data.history||[]).filter(m => m.role === 'user').length;
-
+  _msgCount = (data.history || []).filter(m => m.role === 'user').length;
   _wasConnected = false;
   connect(sid);
   loadSessions(sid);
@@ -1177,9 +1447,8 @@ async function loadSession(sid) {
 let _allSessions = [];
 
 async function loadSessions(activeSid) {
-  const user = getUser();
-  const userParam = user ? `?username=${encodeURIComponent(user)}` : '';
-  const res = await fetch(`/api/sessions${userParam}`);
+  const res = await fetch('/api/sessions', { headers: authGet() });
+  if (!res.ok) return;
   _allSessions = await res.json();
   renderSessionList(_allSessions, activeSid || sessionId);
 }
@@ -1225,12 +1494,9 @@ function filterSessions(query) {
 async function deleteSession(sid, e) {
   e.stopPropagation();
   if (!confirm('Delete this conversation?')) return;
-  await fetch(`/api/session/${sid}`, { method: 'DELETE' });
-  if (sid === sessionId) {
-    // If deleting current session, start fresh
-    await startNewSession();
-  }
-  await loadSessions(sessionId);
+  await fetch(`/api/session/${sid}`, { method: 'DELETE', headers: authGet() });
+  if (sid === sessionId) await startNewSession();
+  else await loadSessions(sessionId);
 }
 
 function phaseLabel(p) {
@@ -1244,31 +1510,23 @@ function phaseLabel(p) {
 // ── Init ───────────────────────────────────────────────
 async function initApp() {
   updateUserUI();
-  const user = getUser();
-  const userParam = user ? `?username=${encodeURIComponent(user)}` : '';
-  const sessions = await fetch(`/api/sessions${userParam}`).then(r=>r.json());
+  const res = await fetch('/api/sessions', { headers: authGet() });
+  if (!res.ok) {
+    clearAuth();
+    const st = await fetch('/api/auth/status').then(r => r.json()).catch(() => ({ has_users: true }));
+    showLoginScreen(st.has_users ? 'login' : 'setup');
+    return;
+  }
+  const sessions = await res.json();
   if (sessions.length > 0) {
-    // Resume most recent session for this user
     await loadSession(sessions[0].id);
   } else {
-    // Auto-start a fresh session
     await startNewSession();
   }
   switchTab('structure');
 }
 
-window.onload = () => {
-  const user = localStorage.getItem('smx_user');
-  if (!user) {
-    // Show login screen
-    document.getElementById('login-overlay').classList.add('open');
-    setTimeout(() => document.getElementById('login-name-input').focus(), 100);
-  } else {
-    currentUser = user;
-    updateUserUI();
-    initApp();
-  }
-};
+window.onload = () => { checkAuth(); };
 </script>
 </body>
 </html>

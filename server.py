@@ -10,16 +10,23 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Query, Depends, HTTPException, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from typing import List
+
+import re
 
 from core.memory import (
     init_db, create_session, get_session, list_sessions,
     update_session, add_message, get_conversation_history,
     delete_session, get_messages,
+    create_user, get_user_by_token, verify_login, list_users,
+    update_user_role, delete_user, user_count,
 )
+
+GITHUB_URL_RE = re.compile(r'https?://github\.com/[\w.\-]+/[\w.\-]+', re.IGNORECASE)
 from core.conversation import ConversationManager
 from core.code_analyzer import analyze_project, format_for_context
 from core.executor import stream_task, HAS_CLAUDE_CLI
@@ -63,6 +70,22 @@ class WsPool:
 
 pool = WsPool()
 
+# ─── Auth helpers ────────────────────────────────────────
+
+security = HTTPBearer(auto_error=False)
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials if credentials else None
+    user = get_user_by_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+async def require_admin(user=Depends(get_current_user)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
 
 # ─── REST endpoints ──────────────────────────────────────
 
@@ -71,10 +94,85 @@ async def root():
     return FileResponse(str(BASE_DIR / "static" / "index.html"))
 
 
+@app.get("/api/auth/status")
+async def auth_status():
+    """Returns whether any users exist (to show setup vs login screen)."""
+    return {"has_users": user_count() > 0}
+
+
+@app.post("/api/auth/login")
+async def auth_login(body: dict):
+    username = body.get("username", "").strip()
+    password = body.get("password", "")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
+    user = verify_login(username, password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    return {"token": user["token"], "username": user["username"], "role": user["role"]}
+
+
+@app.post("/api/auth/setup")
+async def auth_setup(body: dict):
+    """Create first admin user. Only works when no users exist."""
+    if user_count() > 0:
+        raise HTTPException(status_code=403, detail="Setup already complete")
+    username = body.get("username", "").strip()
+    password = body.get("password", "")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
+    if len(password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+    user = create_user(username, password, role="admin")
+    if not user:
+        raise HTTPException(status_code=400, detail="Username already taken")
+    return {"token": user["token"], "username": user["username"], "role": user["role"]}
+
+
+@app.get("/api/users")
+async def api_list_users(admin=Depends(require_admin)):
+    return list_users()
+
+
+@app.post("/api/users")
+async def api_create_user(body: dict, admin=Depends(require_admin)):
+    username = body.get("username", "").strip()
+    password = body.get("password", "")
+    role = body.get("role", "member")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
+    if len(password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+    if role not in ("admin", "member"):
+        role = "member"
+    user = create_user(username, password, role=role)
+    if not user:
+        raise HTTPException(status_code=400, detail="Username already taken")
+    return {"username": user["username"], "role": user["role"]}
+
+
+@app.patch("/api/users/{username}/role")
+async def api_update_role(username: str, body: dict, admin=Depends(require_admin)):
+    role = body.get("role", "member")
+    if role not in ("admin", "member"):
+        raise HTTPException(status_code=400, detail="Role must be admin or member")
+    update_user_role(username, role)
+    return {"ok": True}
+
+
+@app.delete("/api/users/{username}")
+async def api_delete_user(username: str, admin=Depends(require_admin)):
+    if username == admin["username"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    delete_user(username)
+    return {"ok": True}
+
+
 @app.get("/api/sessions")
-async def api_list_sessions(username: str = Query(default="")):
-    sessions = list_sessions(username=username)
-    # Attach message count to each session
+async def api_list_sessions(current_user=Depends(get_current_user)):
+    # Admins see all sessions, members see only their own
+    uname = current_user["username"] if current_user["role"] != "admin" else ""
+    sessions = list_sessions(username=uname)
     for s in sessions:
         msgs = get_messages(s["id"])
         s["message_count"] = len([m for m in msgs if m["role"] == "user"])
@@ -82,25 +180,25 @@ async def api_list_sessions(username: str = Query(default="")):
 
 
 @app.post("/api/sessions")
-async def api_create_session(username: str = Query(default="")):
-    sid = create_session(username=username)
+async def api_create_session(current_user=Depends(get_current_user)):
+    sid = create_session(username=current_user["username"])
     return {"session_id": sid}
 
 
 @app.delete("/api/session/{sid}")
-async def api_delete_session(sid: str):
+async def api_delete_session(sid: str, current_user=Depends(get_current_user)):
     delete_session(sid)
     return {"ok": True}
 
 
 @app.post("/api/session/{sid}/name")
-async def api_rename_session(sid: str, body: dict):
+async def api_rename_session(sid: str, body: dict, current_user=Depends(get_current_user)):
     update_session(sid, name=body.get("name", ""))
     return {"ok": True}
 
 
 @app.get("/api/session/{sid}")
-async def api_get_session(sid: str):
+async def api_get_session(sid: str, current_user=Depends(get_current_user)):
     s = get_session(sid)
     if not s:
         return JSONResponse({"error": "Not found"}, status_code=404)
@@ -142,9 +240,20 @@ async def serve_mockup(sid: str, name: str):
 
 # ─── WebSocket ───────────────────────────────────────────
 
+@app.get("/api/auth/me")
+async def auth_me(current_user=Depends(get_current_user)):
+    return {"username": current_user["username"], "role": current_user["role"]}
+
+
 @app.websocket("/ws/{session_id}")
-async def ws_endpoint(websocket: WebSocket, session_id: str, username: str = Query(default="")):
+async def ws_endpoint(websocket: WebSocket, session_id: str, token: str = Query(default=""), username: str = Query(default="")):
     await pool.add(session_id, websocket)
+
+    # Resolve username from token if provided
+    if token:
+        user_obj = get_user_by_token(token)
+        if user_obj:
+            username = user_obj["username"]
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
@@ -201,99 +310,101 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, username: str = Que
                 if not user_text:
                     continue
 
-                add_message(session_id, "user", user_text)
-                session = get_session(session_id)
-                phase = session.get("phase", "greeting")
-                history = get_conversation_history(session_id)
+                # Auto-detect GitHub URL typed in chat → silently route to folder analysis
+                gh_match = GITHUB_URL_RE.search(user_text)
+                if gh_match:
+                    github_url = gh_match.group(0).rstrip("/")
+                    add_message(session_id, "user", user_text)
+                    data = {"type": "set_folder", "path": github_url, "source": "github"}
+                    msg_type = "set_folder"
+                    # Fall through: handled by the set_folder block below
 
-                # Show typing indicator
-                await pool.send(session_id, {"type": "thinking"})
+                if msg_type == "message":
+                    # Normal message — not redirected
+                    add_message(session_id, "user", user_text)
+                    session = get_session(session_id)
+                    phase = session.get("phase", "greeting")
+                    history = get_conversation_history(session_id)
 
-                # Build extra context if we have code analysis
-                extra = ""
-                code_analysis = session.get("tech_stack", "")  # reuse field for raw analysis
+                    await pool.send(session_id, {"type": "thinking"})
 
-                # Get the response from Claude
-                result = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: conv.chat(
-                        session_id,
-                        history[:-1],  # exclude last user msg (already appended)
-                        user_text,
-                        extra_context=extra,
-                        phase=phase,
-                    ),
-                )
+                    extra = ""
+                    code_analysis = session.get("tech_stack", "")
 
-                reply = result["reply"]
-                signals = result["signals"]
-
-                add_message(session_id, "assistant", reply)
-
-                await pool.send(session_id, {
-                    "type": "message",
-                    "role": "assistant",
-                    "content": reply,
-                    "phase": phase,
-                })
-
-                # ── Handle signals ───────────────────────
-
-                if signals.get("need_folder"):
-                    update_session(session_id, phase="awaiting_folder")
-
-                if signals.get("requirements"):
-                    req = signals["requirements"]
-                    update_session(
-                        session_id,
-                        requirements=json.dumps(req),
-                        name=req.get("project_name", session["name"]),
-                        phase="requirements_done",
+                    result = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: conv.chat(
+                            session_id,
+                            history[:-1],
+                            user_text,
+                            extra_context=extra,
+                            phase=phase,
+                        ),
                     )
+
+                    reply = result["reply"]
+                    signals = result["signals"]
+
+                    add_message(session_id, "assistant", reply)
                     await pool.send(session_id, {
-                        "type": "phase_change",
-                        "phase": "requirements_done",
-                        "data": req,
+                        "type": "message",
+                        "role": "assistant",
+                        "content": reply,
+                        "phase": phase,
                     })
 
-                if signals.get("mockup_html"):
-                    html = signals["mockup_html"]
-                    mockup_path = MOCKUP_DIR / session_id
-                    mockup_path.mkdir(parents=True, exist_ok=True)
-                    (mockup_path / "mockup.html").write_text(html, encoding="utf-8")
+                    if signals.get("need_folder"):
+                        update_session(session_id, phase="awaiting_folder")
 
-                    update_session(session_id, phase="awaiting_ui_approval")
-                    pending_approval["ui"] = {"html": html}
+                    if signals.get("requirements"):
+                        req = signals["requirements"]
+                        update_session(
+                            session_id,
+                            requirements=json.dumps(req),
+                            name=req.get("project_name", session["name"]),
+                            phase="requirements_done",
+                        )
+                        await pool.send(session_id, {
+                            "type": "phase_change",
+                            "phase": "requirements_done",
+                            "data": req,
+                        })
 
-                    await pool.send(session_id, {
-                        "type": "approval_request",
-                        "approval_type": "ui",
-                        "approval_id": "ui_mockup",
-                        "title": "UI/UX Mockup Ready",
-                        "description": "Your UI mockup is ready. Preview it and then approve or request changes.",
-                        "preview_url": f"/mockup/{session_id}/mockup.html",
-                    })
+                    if signals.get("mockup_html"):
+                        html = signals["mockup_html"]
+                        mockup_path = MOCKUP_DIR / session_id
+                        mockup_path.mkdir(parents=True, exist_ok=True)
+                        (mockup_path / "mockup.html").write_text(html, encoding="utf-8")
+                        update_session(session_id, phase="awaiting_ui_approval")
+                        pending_approval["ui"] = {"html": html}
+                        await pool.send(session_id, {
+                            "type": "approval_request",
+                            "approval_type": "ui",
+                            "approval_id": "ui_mockup",
+                            "title": "UI/UX Mockup Ready",
+                            "description": "Your UI mockup is ready. Preview it and then approve or request changes.",
+                            "preview_url": f"/mockup/{session_id}/mockup.html",
+                        })
 
-                if signals.get("task_plan"):
-                    plan = signals["task_plan"]
-                    update_session(
-                        session_id,
-                        task_plan=json.dumps(plan),
-                        phase="awaiting_task_approval",
-                    )
-                    pending_approval["tasks"] = plan
+                    if signals.get("task_plan"):
+                        plan = signals["task_plan"]
+                        update_session(
+                            session_id,
+                            task_plan=json.dumps(plan),
+                            phase="awaiting_task_approval",
+                        )
+                        pending_approval["tasks"] = plan
+                        await pool.send(session_id, {
+                            "type": "approval_request",
+                            "approval_type": "tasks",
+                            "approval_id": "task_plan",
+                            "title": f"Implementation Plan ({len(plan)} tasks)",
+                            "description": "Here's the complete implementation plan. Approve to start building.",
+                            "data": plan,
+                        })
 
-                    await pool.send(session_id, {
-                        "type": "approval_request",
-                        "approval_type": "tasks",
-                        "approval_id": "task_plan",
-                        "title": f"Implementation Plan ({len(plan)} tasks)",
-                        "description": "Here's the complete implementation plan. Approve to start building.",
-                        "data": plan,
-                    })
-
-            # ── Folder path provided ─────────────────────
-            elif msg_type == "set_folder":
+            # ── Folder path provided (or redirected from message) ──────
+            if msg_type == "set_folder":
                 folder = data.get("path", "").strip()
                 source = data.get("source", "local")
                 await pool.send(session_id, {"type": "thinking"})
@@ -372,7 +483,12 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, username: str = Que
                     lambda: conv.chat(
                         session_id,
                         history,
-                        "Based on this analysis, what are your first questions for me?",
+                        (
+                            "The codebase has been fully analyzed — all file contents are in your context above. "
+                            "You have complete access to the code. "
+                            "Please briefly summarize what you found (tech stack, structure, key files), "
+                            "then ask me what improvements or changes I want to make."
+                        ),
                         extra_context=formatted,
                         phase="code_analysis_done",
                     ),
@@ -388,7 +504,7 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, username: str = Que
                 })
 
             # ── Approval / rejection ─────────────────────
-            elif msg_type == "approval":
+            if msg_type == "approval":
                 approval_id = data.get("approval_id")
                 decision    = data.get("decision")   # "approve" or "reject"
                 feedback    = data.get("feedback", "")
