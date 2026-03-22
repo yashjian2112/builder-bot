@@ -734,15 +734,39 @@ function submitGithub() {
   }
 }
 
-function onFolderSelected(input) {
+async function onFolderSelected(input) {
   if (!input.files || !input.files.length) return;
-  // Get folder path from first file's webkitRelativePath
-  const rel = input.files[0].webkitRelativePath;
-  const folderName = rel.split('/')[0];
-  // Try to build a reasonable path hint
-  document.getElementById('folder-path-input').value = folderName;
-  document.getElementById('folder-path-input').focus();
-  document.getElementById('folder-path-input').select();
+  const folderName = input.files[0].webkitRelativePath.split('/')[0];
+  document.getElementById('folder-path-input').value = `Uploading ${input.files.length} files from "${folderName}"...`;
+  document.getElementById('folder-submit-btn').disabled = true;
+  document.getElementById('folder-submit-btn').textContent = 'Uploading...';
+
+  // Make sure we have a session
+  if (!sessionId) await startNewSession();
+
+  // Upload all files to server
+  const formData = new FormData();
+  const paths = [];
+  for (const f of input.files) {
+    formData.append('files', f);
+    paths.push(f.webkitRelativePath);
+  }
+  formData.append('paths', paths.join('||'));
+
+  try {
+    const res = await fetch(`/api/upload/${sessionId}`, { method: 'POST', body: formData });
+    const { upload_dir, file_count } = await res.json();
+    document.getElementById('folder-path-input').value = upload_dir;
+    document.getElementById('folder-submit-btn').disabled = false;
+    document.getElementById('folder-submit-btn').textContent = 'Analyze Project';
+    // Auto-submit
+    submitFolder();
+  } catch(e) {
+    document.getElementById('folder-path-input').value = '';
+    document.getElementById('folder-path-input').placeholder = 'Upload failed — try again';
+    document.getElementById('folder-submit-btn').disabled = false;
+    document.getElementById('folder-submit-btn').textContent = 'Analyze Project';
+  }
 }
 
 function submitFolder() {

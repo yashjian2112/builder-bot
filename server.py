@@ -10,9 +10,10 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from typing import List
 
 from core.memory import (
     init_db, create_session, get_session, list_sessions,
@@ -87,6 +88,30 @@ async def api_get_session(sid: str):
         return JSONResponse({"error": "Not found"}, status_code=404)
     history = get_conversation_history(sid)
     return {**s, "history": history}
+
+
+@app.post("/api/upload/{sid}")
+async def api_upload_folder(sid: str, files: List[UploadFile] = File(...), paths: str = Form("")):
+    """Receive uploaded folder files and store them for analysis."""
+    import aiofiles
+    upload_dir = DATA_DIR / "uploads" / sid
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    path_list = [p.strip() for p in paths.split("||") if p.strip()]
+
+    for i, f in enumerate(files):
+        rel_path = path_list[i] if i < len(path_list) else f.filename
+        # Strip the top-level folder name (it's the project root)
+        parts = Path(rel_path).parts
+        if len(parts) > 1:
+            rel_path = str(Path(*parts[1:]))
+        dest = upload_dir / rel_path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        content = await f.read()
+        async with aiofiles.open(str(dest), "wb") as out:
+            await out.write(content)
+
+    return {"upload_dir": str(upload_dir), "file_count": len(files)}
 
 
 @app.get("/mockup/{sid}/{name}")
