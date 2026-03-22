@@ -42,6 +42,12 @@ SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 init_db()
 
+# Auto-seed default admin from env vars (runs once on fresh DB)
+_seed_user = os.environ.get("DEFAULT_ADMIN_USER", "").strip()
+_seed_pass = os.environ.get("DEFAULT_ADMIN_PASS", "").strip()
+if _seed_user and _seed_pass and user_count() == 0:
+    create_user(_seed_user, _seed_pass, role="admin")
+
 app = FastAPI(title="SMXDrives")
 
 # Serve static files
