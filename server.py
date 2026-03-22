@@ -318,10 +318,25 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, token: str = Query(
     # Pending approval state (in-memory during session)
     pending_approval: dict = {}
 
+    # ── Keepalive: ping every 25s to prevent Render/proxy idle timeout ──
+    async def _keepalive():
+        while True:
+            await asyncio.sleep(25)
+            try:
+                await websocket.send_json({"type": "ping"})
+            except Exception:
+                break
+
+    keepalive_task = asyncio.ensure_future(_keepalive())
+
     try:
         while True:
             data = await websocket.receive_json()
             msg_type = data.get("type", "message")
+
+            # ── Keepalive pong from client ────────────────
+            if msg_type == "pong":
+                continue
 
             # ── User chat message ────────────────────────
             if msg_type == "message":
@@ -773,3 +788,5 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, token: str = Query(
 
     except WebSocketDisconnect:
         pool.remove(session_id)
+    finally:
+        keepalive_task.cancel()

@@ -1308,6 +1308,7 @@ function handleFolderSubmit() {
 // Streaming state
 let _streamBubble = null;
 let _streamRaw = '';
+let _pendingMsg = null; // last user message awaiting a bot reply
 
 function _startStreamMsg(phase) {
   document.getElementById('typing-indicator').classList.remove('visible');
@@ -1348,10 +1349,12 @@ function handleMsg(m) {
   document.getElementById('typing-indicator').classList.remove('visible');
   switch (m.type) {
     case 'message':
+      if (m.role === 'assistant') _pendingMsg = null;
       appendMessage(m.role, m.content);
       if (m.phase) updatePhase(m.phase);
       break;
     case 'stream_start':
+      _pendingMsg = null; // got a reply — clear pending
       _startStreamMsg(m.phase);
       break;
     case 'stream_chunk':
@@ -1360,6 +1363,9 @@ function handleMsg(m) {
     case 'stream_end':
       _endStreamMsg(m.phase, m.reply);
       // signals-driven phase UI updates happen server-side; session reload covers the rest
+      break;
+    case 'ping':
+      if (ws && ws.readyState === 1) ws.send(JSON.stringify({type: 'pong'}));
       break;
     case 'thinking':
       document.getElementById('typing-indicator').classList.add('visible');
@@ -1389,7 +1395,17 @@ function handleMsg(m) {
       termLog(`✓ Task ${m.task_id} complete`, 'ok');
       break;
     case 'session_restored':
-      updatePhase(m.phase || 'greeting'); break;
+      updatePhase(m.phase || 'greeting');
+      // If a user message was sent but got no reply (WS dropped), resend it
+      if (_pendingMsg && ws && ws.readyState === 1) {
+        setTimeout(() => {
+          if (_pendingMsg && ws && ws.readyState === 1) {
+            appendMessage('bot', '⚠️ Connection was lost. Retrying your last message…');
+            ws.send(JSON.stringify({type: 'message', content: _pendingMsg}));
+          }
+        }, 500);
+      }
+      break;
     case 'error':
       appendMessage('bot', 'Error: ' + m.message); break;
   }
@@ -1411,6 +1427,7 @@ function sendMessage() {
   }
 
   appendMessage('user', txt);
+  _pendingMsg = txt; // track for reconnect-retry
   ws.send(JSON.stringify({ type: 'message', content: txt }));
   inp.value = ''; autoResize(inp);
 
