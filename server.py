@@ -148,7 +148,7 @@ async def ws_endpoint(websocket: WebSocket, session_id: str):
     history = get_conversation_history(session_id)
     if not history:
         welcome = (
-            "👋 Hey! I'm **Builder Bot** — your autonomous project engineer.\n\n"
+            "Hey! I'm **Builder Bot** — your autonomous project engineer.\n\n"
             "I'll help you go from idea → UI design → working code, step by step.\n\n"
             "Tell me: are you starting a **new project**, or do you want to enhance an **existing app**?"
         )

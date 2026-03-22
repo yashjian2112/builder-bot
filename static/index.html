@@ -287,7 +287,7 @@
     </div>
     <div class="folder-modal-actions">
       <button id="folder-cancel-btn" onclick="closeFolderModal()">Cancel</button>
-      <button id="folder-submit-btn" onclick="activeTab==='github'?submitGithub():submitFolder()">Analyze Project</button>
+      <button id="folder-submit-btn" onclick="handleFolderSubmit()">Analyze Project</button>
     </div>
   </div>
 </div>
@@ -631,14 +631,25 @@ function updateProgress(done, total, label) {
 }
 
 // ── WebSocket ──────────────────────────────────────────
+let _reconnectTimer = null;
 function connect(sid) {
   if (ws) { ws.close(); ws=null; }
+  if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer=null; }
   sessionId=sid; execLog=null; progressWrap=null;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/${sid}`);
   ws.onopen  = () => { setConnected(true); };
-  ws.onclose = () => setConnected(false);
-  ws.onmessage = ({data}) => handleMsg(JSON.parse(data));
+  ws.onclose = () => {
+    setConnected(false);
+    // Auto-reconnect after 3s (handles Render free tier spin-down)
+    _reconnectTimer = setTimeout(() => { if(sessionId) connect(sessionId); }, 3000);
+  };
+  ws.onerror = () => { ws.close(); };
+  ws.onmessage = ({data}) => { try { handleMsg(JSON.parse(data)); } catch(e) {} };
+}
+
+function handleFolderSubmit() {
+  if (activeTab === 'github') submitGithub(); else submitFolder();
 }
 
 function handleMsg(m) {
@@ -668,8 +679,8 @@ function handleMsg(m) {
       break;
     case 'task_log':
       if(m.message) {
-        const t = m.message.includes('❌')||m.message.toLowerCase().includes('error')
-          ? 'error' : m.message.startsWith('✅') ? 'success' : '';
+        const t = m.message.toLowerCase().includes('error')||m.message.toLowerCase().includes('failed')
+          ? 'error' : m.message.toLowerCase().includes('done')||m.message.toLowerCase().includes('success') ? 'success' : '';
         logLine(m.message, t);
       }
       break;
