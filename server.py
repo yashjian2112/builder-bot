@@ -72,8 +72,8 @@ async def root():
 
 
 @app.get("/api/sessions")
-async def api_list_sessions(user: str = Query(default="")):
-    sessions = list_sessions(user=user)
+async def api_list_sessions(username: str = Query(default="")):
+    sessions = list_sessions(username=username)
     # Attach message count to each session
     for s in sessions:
         msgs = get_messages(s["id"])
@@ -82,8 +82,8 @@ async def api_list_sessions(user: str = Query(default="")):
 
 
 @app.post("/api/sessions")
-async def api_create_session(user: str = Query(default="")):
-    sid = create_session(user=user)
+async def api_create_session(username: str = Query(default="")):
+    sid = create_session(username=username)
     return {"session_id": sid}
 
 
@@ -143,7 +143,7 @@ async def serve_mockup(sid: str, name: str):
 # ─── WebSocket ───────────────────────────────────────────
 
 @app.websocket("/ws/{session_id}")
-async def ws_endpoint(websocket: WebSocket, session_id: str, user: str = Query(default="")):
+async def ws_endpoint(websocket: WebSocket, session_id: str, username: str = Query(default="")):
     await pool.add(session_id, websocket)
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -160,11 +160,11 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, user: str = Query(d
     # Send welcome if first time
     session = get_session(session_id)
     if not session:
-        session_id = create_session(user=user)
+        session_id = create_session(username=username)
         session = get_session(session_id)
-    elif user and not session.get("user"):
-        # Attach user to session if not already set
-        update_session(session_id, user=user)
+    elif username and not session.get("username"):
+        # Attach username to session if not already set
+        update_session(session_id, username=username)
 
     history = get_conversation_history(session_id)
     if not history:

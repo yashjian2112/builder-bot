@@ -920,7 +920,7 @@ function connect(sid) {
   sessionId=sid; execLog=null; progressWrap=null;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const user = getUser();
-  const userParam = user ? `?user=${encodeURIComponent(user)}` : '';
+  const userParam = user ? `?username=${encodeURIComponent(user)}` : '';
   ws = new WebSocket(`${proto}://${location.host}/ws/${sid}${userParam}`);
 
   ws.onopen = () => {
@@ -1118,7 +1118,7 @@ function openExistingFromOverlay() {
 // ── Sessions ───────────────────────────────────────────
 async function startNewSession(cb) {
   const user = getUser();
-  const userParam = user ? `?user=${encodeURIComponent(user)}` : '';
+  const userParam = user ? `?username=${encodeURIComponent(user)}` : '';
   const res = await fetch(`/api/sessions${userParam}`,{method:'POST'});
   const {session_id} = await res.json();
   document.getElementById('chat-area').innerHTML='';
@@ -1178,7 +1178,7 @@ let _allSessions = [];
 
 async function loadSessions(activeSid) {
   const user = getUser();
-  const userParam = user ? `?user=${encodeURIComponent(user)}` : '';
+  const userParam = user ? `?username=${encodeURIComponent(user)}` : '';
   const res = await fetch(`/api/sessions${userParam}`);
   _allSessions = await res.json();
   renderSessionList(_allSessions, activeSid || sessionId);
@@ -1245,7 +1245,7 @@ function phaseLabel(p) {
 async function initApp() {
   updateUserUI();
   const user = getUser();
-  const userParam = user ? `?user=${encodeURIComponent(user)}` : '';
+  const userParam = user ? `?username=${encodeURIComponent(user)}` : '';
   const sessions = await fetch(`/api/sessions${userParam}`).then(r=>r.json());
   if (sessions.length > 0) {
     // Resume most recent session for this user
