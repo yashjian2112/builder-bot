@@ -82,6 +82,13 @@
   #login-start-btn:hover:not(:disabled) { opacity: .88; }
   #login-start-btn:active { transform: scale(.98); }
   #login-start-btn:disabled { opacity: .5; cursor: default; }
+  .stream-cursor {
+    display: inline-block; width: 2px; height: 1em;
+    background: var(--accent); margin-left: 1px;
+    vertical-align: text-bottom;
+    animation: blink .8s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
 
   /* ── Admin Modal ── */
   #admin-modal-overlay {
@@ -534,6 +541,13 @@
       autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     <div id="login-error"></div>
     <button id="login-start-btn" onclick="doLogin()">Sign In</button>
+    <div id="login-switch-link" style="margin-top:14px;font-size:12px;color:var(--muted)">
+      <span id="login-switch-text">First time?</span>
+      <button id="login-switch-btn" onclick="toggleLoginMode()"
+        style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;text-decoration:underline;padding:0 0 0 4px">
+        Create admin account
+      </button>
+    </div>
   </div>
 </div>
 
@@ -805,7 +819,15 @@ function showLoginScreen(mode) {
   document.getElementById('login-subtext').textContent  = mode === 'setup' ? 'First time setup — create your admin account.' : 'Sign in to continue building.';
   document.getElementById('login-start-btn').textContent = mode === 'setup' ? 'Create Account' : 'Sign In';
   document.getElementById('login-error').textContent = '';
+  // Update switch link
+  document.getElementById('login-switch-text').textContent = mode === 'setup' ? 'Already have an account?' : 'First time?';
+  document.getElementById('login-switch-btn').textContent  = mode === 'setup' ? 'Sign in instead' : 'Create admin account';
   setTimeout(() => document.getElementById('login-username').focus(), 120);
+}
+
+function toggleLoginMode() {
+  const cur = document.getElementById('login-mode').value;
+  showLoginScreen(cur === 'setup' ? 'login' : 'setup');
 }
 
 async function doLogin() {
@@ -826,7 +848,18 @@ async function doLogin() {
     });
     if (!res.ok) {
       const e = await res.json().catch(() => ({}));
-      errEl.textContent = e.detail || 'Authentication failed';
+      const detail = e.detail || '';
+      // Auto-switch modes when appropriate
+      if (mode === 'setup' && detail === 'Setup already complete') {
+        showLoginScreen('login');
+        document.getElementById('login-error').textContent = 'Admin already exists — please sign in.';
+        return;
+      }
+      if (mode === 'login' && (detail.includes('Invalid') || detail.includes('not found'))) {
+        errEl.textContent = 'Wrong username or password';
+      } else {
+        errEl.textContent = detail || 'Authentication failed';
+      }
       btn.disabled = false; btn.textContent = mode === 'setup' ? 'Create Account' : 'Sign In';
       return;
     }
@@ -839,7 +872,7 @@ async function doLogin() {
     updateUserUI();
     initApp();
   } catch(e) {
-    errEl.textContent = 'Connection error — try again';
+    errEl.textContent = 'Connection error — server may be waking up, try again in a moment';
     btn.disabled = false; btn.textContent = mode === 'setup' ? 'Create Account' : 'Sign In';
   }
 }
@@ -1224,12 +1257,60 @@ function handleFolderSubmit() {
   if (activeTab === 'github') submitGithub(); else submitFolder();
 }
 
+// Streaming state
+let _streamBubble = null;
+let _streamRaw = '';
+
+function _startStreamMsg(phase) {
+  document.getElementById('typing-indicator').classList.remove('visible');
+  const area = document.getElementById('chat-area');
+  const div  = document.createElement('div');
+  div.className = 'msg bot';
+  const av = document.createElement('div');
+  av.className = 'avatar bot';
+  av.innerHTML = '<span style="font-size:11px;font-weight:900;color:#fff">X</span>';
+  const bub = document.createElement('div');
+  bub.className = 'bubble';
+  bub.innerHTML = '<span class="stream-cursor">▋</span>';
+  div.appendChild(av); div.appendChild(bub);
+  area.appendChild(div);
+  _streamBubble = bub;
+  _streamRaw = '';
+  scroll();
+}
+
+function _appendStreamChunk(chunk) {
+  if (!_streamBubble) _startStreamMsg('');
+  _streamRaw += chunk;
+  // Re-render as markdown with cursor at end
+  _streamBubble.innerHTML = md(_streamRaw) + '<span class="stream-cursor">▋</span>';
+  scroll();
+}
+
+function _endStreamMsg(phase) {
+  if (_streamBubble) {
+    _streamBubble.innerHTML = md(_streamRaw);
+    _streamBubble = null;
+  }
+  if (phase) updatePhase(phase);
+}
+
 function handleMsg(m) {
   document.getElementById('typing-indicator').classList.remove('visible');
   switch (m.type) {
     case 'message':
       appendMessage(m.role, m.content);
       if (m.phase) updatePhase(m.phase);
+      break;
+    case 'stream_start':
+      _startStreamMsg(m.phase);
+      break;
+    case 'stream_chunk':
+      _appendStreamChunk(m.content);
+      break;
+    case 'stream_end':
+      _endStreamMsg(m.phase);
+      // signals-driven phase UI updates happen server-side; session reload covers the rest
       break;
     case 'thinking':
       document.getElementById('typing-indicator').classList.add('visible');

@@ -182,6 +182,14 @@ class ConversationManager:
     def __init__(self, api_key: str):
         self.client = anthropic.Anthropic(api_key=api_key)
 
+    def _build_system(self, extra_context: str = "", phase: str = "") -> str:
+        system = SYSTEM_PROMPT
+        if extra_context:
+            system += f"\n\n━━━ ADDITIONAL CONTEXT ━━━\n{extra_context}"
+        if phase:
+            system += f"\n\n[Current phase: {phase}]"
+        return system
+
     def chat(
         self,
         session_id: str,
@@ -200,11 +208,7 @@ class ConversationManager:
             "raw":          str,          # full raw response
           }
         """
-        system = SYSTEM_PROMPT
-        if extra_context:
-            system += f"\n\n━━━ ADDITIONAL CONTEXT ━━━\n{extra_context}"
-        if phase:
-            system += f"\n\n[Current phase: {phase}]"
+        system = self._build_system(extra_context, phase)
 
         messages = list(history)
         messages.append({"role": "user", "content": user_message})
@@ -212,7 +216,6 @@ class ConversationManager:
         response = self.client.messages.create(
             model="claude-opus-4-6",
             max_tokens=8192,
-            thinking={"type": "adaptive"},
             system=system,
             messages=messages,
         )
@@ -226,6 +229,39 @@ class ConversationManager:
             "signals": signals,
             "raw":     raw,
         }
+
+    def stream_chat(
+        self,
+        history: list[dict],
+        user_message: str,
+        extra_context: str = "",
+        phase: str = "greeting",
+    ):
+        """
+        Sync generator that streams the bot's reply token-by-token.
+
+        Yields: ("chunk", str) for each text token
+        Final:  ("done", {"reply": str, "signals": dict, "raw": str})
+        """
+        system = self._build_system(extra_context, phase)
+
+        messages = list(history)
+        messages.append({"role": "user", "content": user_message})
+
+        full_text = ""
+        with self.client.messages.stream(
+            model="claude-opus-4-6",
+            max_tokens=8192,
+            system=system,
+            messages=messages,
+        ) as stream:
+            for text in stream.text_stream:
+                full_text += text
+                yield ("chunk", text)
+
+        signals = detect_signals(full_text)
+        reply = clean_reply(full_text)
+        yield ("done", {"reply": reply, "signals": signals, "raw": full_text})
 
     def generate_context_document(
         self,

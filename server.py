@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -326,30 +327,46 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, token: str = Query(
                     phase = session.get("phase", "greeting")
                     history = get_conversation_history(session_id)
 
-                    await pool.send(session_id, {"type": "thinking"})
+                    await pool.send(session_id, {"type": "stream_start", "phase": phase})
 
                     extra = ""
                     code_analysis = session.get("tech_stack", "")
 
-                    result = await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        lambda: conv.chat(
-                            session_id,
-                            history[:-1],
-                            user_text,
-                            extra_context=extra,
-                            phase=phase,
-                        ),
-                    )
+                    # Stream response via queue (sync generator → async WS)
+                    q: asyncio.Queue = asyncio.Queue()
+                    loop = asyncio.get_event_loop()
 
-                    reply = result["reply"]
-                    signals = result["signals"]
+                    def _run_stream():
+                        try:
+                            for kind, payload in conv.stream_chat(
+                                history[:-1],
+                                user_text,
+                                extra_context=extra,
+                                phase=phase,
+                            ):
+                                loop.call_soon_threadsafe(q.put_nowait, (kind, payload))
+                        except Exception as exc:
+                            loop.call_soon_threadsafe(q.put_nowait, ("error", str(exc)))
+
+                    threading.Thread(target=_run_stream, daemon=True).start()
+
+                    reply = ""
+                    signals = {}
+                    while True:
+                        kind, payload = await q.get()
+                        if kind == "chunk":
+                            await pool.send(session_id, {"type": "stream_chunk", "content": payload})
+                        elif kind == "done":
+                            reply = payload["reply"]
+                            signals = payload["signals"]
+                            break
+                        elif kind == "error":
+                            await pool.send(session_id, {"type": "stream_chunk", "content": f"\n\n[Error: {payload}]"})
+                            break
 
                     add_message(session_id, "assistant", reply)
                     await pool.send(session_id, {
-                        "type": "message",
-                        "role": "assistant",
-                        "content": reply,
+                        "type": "stream_end",
                         "phase": phase,
                     })
 
@@ -516,28 +533,42 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, token: str = Query(
                     reject_msg = feedback or "Please revise this."
                     add_message(session_id, "user", reject_msg)
                     history = get_conversation_history(session_id)
+                    rej_phase = session.get("phase", "")
 
-                    await pool.send(session_id, {"type": "thinking"})
+                    await pool.send(session_id, {"type": "stream_start", "phase": rej_phase})
 
-                    result = await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        lambda: conv.chat(
-                            session_id,
-                            history[:-1],
-                            reject_msg,
-                            phase=session.get("phase", ""),
-                        ),
-                    )
-                    reply = result["reply"]
-                    signals = result["signals"]
+                    q2: asyncio.Queue = asyncio.Queue()
+                    loop2 = asyncio.get_event_loop()
+
+                    def _run_reject_stream():
+                        try:
+                            for kind, payload in conv.stream_chat(
+                                history[:-1],
+                                reject_msg,
+                                phase=rej_phase,
+                            ):
+                                loop2.call_soon_threadsafe(q2.put_nowait, (kind, payload))
+                        except Exception as exc:
+                            loop2.call_soon_threadsafe(q2.put_nowait, ("error", str(exc)))
+
+                    threading.Thread(target=_run_reject_stream, daemon=True).start()
+
+                    reply = ""
+                    signals = {}
+                    while True:
+                        kind, payload = await q2.get()
+                        if kind == "chunk":
+                            await pool.send(session_id, {"type": "stream_chunk", "content": payload})
+                        elif kind == "done":
+                            reply = payload["reply"]
+                            signals = payload["signals"]
+                            break
+                        elif kind == "error":
+                            await pool.send(session_id, {"type": "stream_chunk", "content": f"\n\n[Error: {payload}]"})
+                            break
+
                     add_message(session_id, "assistant", reply)
-
-                    await pool.send(session_id, {
-                        "type": "message",
-                        "role": "assistant",
-                        "content": reply,
-                        "phase": session.get("phase"),
-                    })
+                    await pool.send(session_id, {"type": "stream_end", "phase": rej_phase})
 
                     # Re-check for new mockup/plan in revised response
                     if signals.get("mockup_html"):

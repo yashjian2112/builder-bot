@@ -21,6 +21,18 @@ DB_PATH     = Path(__file__).parent.parent / "data" / "sessions.db"
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 IS_PG       = bool(DATABASE_URL)
 
+# Try to import psycopg2 — fall back to SQLite if not available
+if IS_PG:
+    try:
+        import psycopg2                         # noqa: F401
+        from psycopg2.extras import RealDictCursor  # noqa: F401
+        _PG_AVAILABLE = True
+    except ImportError:
+        IS_PG = False
+        _PG_AVAILABLE = False
+else:
+    _PG_AVAILABLE = False
+
 
 # ── Thin cursor wrapper ──────────────────────────────────────────────────────
 
@@ -48,8 +60,6 @@ class _Cur:
 def _conn():
     """Yield a normalised _Cur inside a committed transaction."""
     if IS_PG:
-        import psycopg2                         # type: ignore
-        from psycopg2.extras import RealDictCursor  # type: ignore
         conn = psycopg2.connect(DATABASE_URL)
         try:
             raw = conn.cursor(cursor_factory=RealDictCursor)
