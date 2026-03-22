@@ -171,7 +171,10 @@ def detect_signals(text: str) -> dict:
 def clean_reply(text: str) -> str:
     """Remove special marker blocks from the visible reply."""
     for tag in ["REQUIREMENTS_DONE", "UI_MOCKUP", "TASK_PLAN"]:
+        # Remove complete blocks
         text = re.sub(rf"<{tag}>.*?</{tag}>", "", text, flags=re.DOTALL)
+        # Remove incomplete/truncated blocks (API cut off before closing tag)
+        text = re.sub(rf"<{tag}>.*$", "", text, flags=re.DOTALL)
     text = text.replace("<NEED_FOLDER_PATH>", "")
     return text.strip()
 

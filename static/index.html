@@ -1126,6 +1126,21 @@ function setTaskStatus(taskId, status) {
 }
 
 // ── Messages ───────────────────────────────────────────
+
+// Strip <UI_MOCKUP>, <TASK_PLAN>, <REQUIREMENTS_DONE> blocks from stored messages
+// (handles both complete and truncated/incomplete blocks)
+function cleanMarkers(text) {
+  const tags = ['UI_MOCKUP', 'TASK_PLAN', 'REQUIREMENTS_DONE'];
+  for (const tag of tags) {
+    // Complete block
+    text = text.replace(new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, 'g'), '');
+    // Incomplete block (API truncated before closing tag)
+    text = text.replace(new RegExp(`<${tag}>[\\s\\S]*$`), '');
+  }
+  text = text.replace(/<NEED_FOLDER_PATH>/g, '');
+  return text.trim();
+}
+
 function appendMessage(role, content) {
   const area = document.getElementById('chat-area');
   const div  = document.createElement('div');
@@ -1136,7 +1151,7 @@ function appendMessage(role, content) {
   av.innerHTML = role==='user' ? IC.user : '<span style="font-size:11px;font-weight:900;color:#fff">X</span>';
   const bub = document.createElement('div');
   bub.className = 'bubble';
-  bub.innerHTML = md(content);
+  bub.innerHTML = md(cleanMarkers(content));
   div.appendChild(av); div.appendChild(bub);
   area.appendChild(div); scroll();
 }
@@ -1585,6 +1600,32 @@ async function loadSession(sid) {
   }
 
   _msgCount = (data.history || []).filter(m => m.role === 'user').length;
+  _pendingMsg = null; // don't carry over pending message from previous session
+
+  // Restore approval widget if session is waiting for approval
+  if (data.phase === 'awaiting_ui_approval') {
+    appendApproval({
+      approval_type: 'ui_mockup',
+      approval_id: 'ui_mockup',
+      title: 'UI Mockup — Ready for Review',
+      description: 'The mockup is ready. Click Preview to view it, then approve or request changes.',
+      preview_url: `/mockup/${sid}/mockup.html`,
+    });
+  } else if (data.phase === 'awaiting_task_approval' && data.task_plan) {
+    try {
+      const plan = typeof data.task_plan === 'string' ? JSON.parse(data.task_plan) : data.task_plan;
+      if (Array.isArray(plan) && plan.length) {
+        appendApproval({
+          approval_type: 'tasks',
+          approval_id: 'task_plan',
+          title: 'Implementation Plan — Ready for Review',
+          description: 'Review the task plan and approve to start building.',
+          data: plan,
+        });
+      }
+    } catch(e) { console.warn('task plan approval restore', e); }
+  }
+
   _wasConnected = false;
   connect(sid);
   loadSessions(sid);
