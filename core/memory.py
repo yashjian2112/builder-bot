@@ -217,6 +217,26 @@ def _hash_password(password: str, salt: str) -> str:
     return hashlib.sha256((salt + password).encode()).hexdigest()
 
 
+def upsert_admin(username: str, password: str) -> None:
+    """Create admin user or reset password if already exists (used for seeding)."""
+    salt = secrets.token_hex(16)
+    password_hash = _hash_password(password, salt)
+    token = secrets.token_hex(32)
+    now = datetime.now().isoformat()
+    with _conn() as cur:
+        existing = cur.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+        if existing:
+            cur.execute(
+                "UPDATE users SET password_hash=?, salt=?, token=?, role=? WHERE username=?",
+                (password_hash, salt, token, "admin", username)
+            )
+        else:
+            cur.execute(
+                "INSERT INTO users (username, password_hash, salt, role, token, created_at) VALUES (?,?,?,?,?,?)",
+                (username, password_hash, salt, "admin", token, now)
+            )
+
+
 def create_user(username: str, password: str, role: str = "member") -> Optional[dict]:
     """Returns created user dict or None if username taken."""
     salt = secrets.token_hex(16)

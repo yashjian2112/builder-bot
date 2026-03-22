@@ -23,7 +23,7 @@ from core.memory import (
     init_db, create_session, get_session, list_sessions,
     update_session, add_message, get_conversation_history,
     delete_session, get_messages,
-    create_user, get_user_by_token, verify_login, list_users,
+    create_user, upsert_admin, get_user_by_token, verify_login, list_users,
     update_user_role, delete_user, user_count,
 )
 
@@ -42,11 +42,11 @@ SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 init_db()
 
-# Auto-seed default admin from env vars (runs once on fresh DB)
+# Auto-seed/reset admin from env vars on every startup
 _seed_user = os.environ.get("DEFAULT_ADMIN_USER", "").strip()
 _seed_pass = os.environ.get("DEFAULT_ADMIN_PASS", "").strip()
-if _seed_user and _seed_pass and user_count() == 0:
-    create_user(_seed_user, _seed_pass, role="admin")
+if _seed_user and _seed_pass:
+    upsert_admin(_seed_user, _seed_pass)
 
 app = FastAPI(title="SMXDrives")
 
