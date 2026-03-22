@@ -52,28 +52,42 @@
   .sidebar-btn.secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
   .sidebar-btn:hover { opacity: .82; }
 
-  /* Folder input inside sidebar */
-  #folder-section {
-    margin: 8px 10px 0;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    display: none;
+  /* Folder Modal */
+  #folder-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65); z-index: 200;
+    align-items: center; justify-content: center;
   }
-  #folder-section.open { display: block; }
-  #folder-section label { display: block; font-size: 11px; color: var(--muted); padding: 8px 10px 4px; }
+  #folder-modal-overlay.open { display: flex; }
+  #folder-modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px; width: 440px; max-width: 92vw;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+  #folder-modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  #folder-modal p  { font-size: 12px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
+  .folder-browse-row {
+    display: flex; gap: 8px; margin-bottom: 12px;
+  }
   #folder-path-input {
-    width: 100%; background: transparent; border: none;
-    border-top: 1px solid var(--border);
-    color: var(--text); padding: 8px 10px;
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 9px 12px;
     font-size: 12px; font-family: 'SF Mono', monospace; outline: none;
   }
-  #folder-submit-btn {
-    width: 100%; padding: 8px; background: var(--accent);
-    color: #fff; border: none; font-size: 12.5px; font-weight: 600;
-    cursor: pointer; border-top: 1px solid var(--border);
+  #folder-path-input:focus { border-color: var(--accent); }
+  #browse-btn {
+    padding: 9px 14px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 12px;
+    cursor: pointer; white-space: nowrap; font-weight: 600;
   }
+  #browse-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .folder-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .folder-modal-actions button {
+    padding: 9px 18px; border-radius: 8px; font-size: 13px;
+    font-weight: 600; cursor: pointer; border: none;
+  }
+  #folder-cancel-btn { background: var(--bg); color: var(--muted); border: 1px solid var(--border) !important; }
+  #folder-submit-btn { background: var(--accent); color: #fff; }
 
   #session-list { flex: 1; overflow-y: auto; padding: 6px 8px; margin-top: 6px; }
   .session-item { padding: 9px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 2px; transition: background .1s; }
@@ -243,6 +257,26 @@
 </head>
 <body>
 
+<!-- Hidden folder file input for native picker -->
+<input type="file" id="folder-file-input" webkitdirectory style="display:none" onchange="onFolderSelected(this)">
+
+<!-- Folder Modal -->
+<div id="folder-modal-overlay">
+  <div id="folder-modal">
+    <h3>📁 Open Existing App</h3>
+    <p>Click "Browse" to pick your project folder, or type the full path manually below.</p>
+    <div class="folder-browse-row">
+      <input type="text" id="folder-path-input" placeholder="/Users/you/my-project"
+        onkeydown="if(event.key==='Enter') submitFolder()" />
+      <button id="browse-btn" onclick="document.getElementById('folder-file-input').click()">📂 Browse</button>
+    </div>
+    <div class="folder-modal-actions">
+      <button id="folder-cancel-btn" onclick="closeFolderModal()">Cancel</button>
+      <button id="folder-submit-btn" onclick="submitFolder()">Analyze Project →</button>
+    </div>
+  </div>
+</div>
+
 <!-- Launch overlay -->
 <div id="overlay">
   <div class="overlay-box">
@@ -264,15 +298,8 @@
   </div>
 
   <button class="sidebar-btn primary" onclick="startNewSession()">✨ New Project</button>
-  <button class="sidebar-btn secondary" onclick="toggleFolderSection()">📁 Open Existing App</button>
+  <button class="sidebar-btn secondary" onclick="openFolderModal()">📁 Open Existing App</button>
 
-  <!-- Folder input -->
-  <div id="folder-section">
-    <label>Paste your project folder path:</label>
-    <input type="text" id="folder-path-input" placeholder="/Users/you/my-app"
-      onkeydown="if(event.key==='Enter') submitFolder()" />
-    <button id="folder-submit-btn" onclick="submitFolder()">Analyze Project →</button>
-  </div>
 
   <div id="session-list"></div>
 
@@ -632,19 +659,33 @@ function sendMessage() {
 function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px'; }
 
-// ── Folder ─────────────────────────────────────────────
-function toggleFolderSection() {
-  const s = document.getElementById('folder-section');
-  s.classList.toggle('open');
-  if(s.classList.contains('open')) document.getElementById('folder-path-input').focus();
+// ── Folder Modal ────────────────────────────────────────
+function openFolderModal() {
+  document.getElementById('folder-modal-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('folder-path-input').focus(), 100);
+}
+
+function closeFolderModal() {
+  document.getElementById('folder-modal-overlay').classList.remove('open');
+  document.getElementById('folder-path-input').value = '';
+}
+
+function onFolderSelected(input) {
+  if (!input.files || !input.files.length) return;
+  // Get folder path from first file's webkitRelativePath
+  const rel = input.files[0].webkitRelativePath;
+  const folderName = rel.split('/')[0];
+  // Try to build a reasonable path hint
+  document.getElementById('folder-path-input').value = folderName;
+  document.getElementById('folder-path-input').focus();
+  document.getElementById('folder-path-input').select();
 }
 
 function submitFolder() {
   const p = document.getElementById('folder-path-input').value.trim();
   if(!p) return;
-  document.getElementById('folder-section').classList.remove('open');
+  closeFolderModal();
   if(!ws||ws.readyState!==1) {
-    // Not connected — start session first
     startNewSession(()=>{
       setTimeout(()=>{
         ws.send(JSON.stringify({type:'set_folder',path:p}));
@@ -660,10 +701,7 @@ function submitFolder() {
 function openExistingFromOverlay() {
   document.getElementById('overlay').classList.add('hidden');
   startNewSession(()=>{
-    setTimeout(()=>{
-      document.getElementById('folder-section').classList.add('open');
-      document.getElementById('folder-path-input').focus();
-    },600);
+    setTimeout(()=>openFolderModal(), 600);
   });
 }
 
