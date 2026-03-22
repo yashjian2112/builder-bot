@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Builder Bot</title>
+<title>SMXDrives</title>
 <style>
   :root {
     --bg:      #1a1a1e;
@@ -25,6 +25,69 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
 
+  /* ── Login Overlay ── */
+  #login-overlay {
+    display: none; position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 99999;
+    align-items: center; justify-content: center;
+    flex-direction: column;
+  }
+  #login-overlay.open { display: flex; }
+  #login-box {
+    background: var(--sidebar);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px 36px;
+    width: 380px; max-width: 92vw;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+    text-align: center;
+  }
+  /* SMXDrives text logo in login */
+  .smx-logo-login {
+    display: flex; flex-direction: column; align-items: center;
+    margin-bottom: 28px; line-height: 1;
+  }
+  .smx-logo-login .smx-top {
+    font-size: 42px; font-weight: 900; letter-spacing: -1px;
+    display: flex; align-items: baseline; gap: 0;
+  }
+  .smx-logo-login .smx-sm { color: #ffffff; }
+  .smx-logo-login .smx-x  { color: #e53535; }
+  .smx-logo-login .smx-drives {
+    font-size: 13px; font-weight: 700; letter-spacing: 4px;
+    color: #e53535; text-transform: uppercase; margin-top: 3px;
+  }
+  #login-box h2 {
+    font-size: 18px; font-weight: 600; color: var(--text);
+    margin-bottom: 6px;
+  }
+  #login-box p {
+    font-size: 13px; color: var(--muted); margin-bottom: 24px; line-height: 1.5;
+  }
+  #login-name-input {
+    width: 100%; background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text);
+    padding: 12px 16px; font-size: 14px;
+    font-family: var(--font); outline: none;
+    transition: border-color .15s;
+    margin-bottom: 12px;
+  }
+  #login-name-input:focus { border-color: var(--accent); }
+  #login-name-input::placeholder { color: var(--muted); }
+  #login-start-btn {
+    width: 100%; padding: 13px;
+    background: #e53535; color: #fff;
+    border: none; border-radius: 10px;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer; letter-spacing: .3px;
+    transition: opacity .15s, transform .1s;
+  }
+  #login-start-btn:hover { opacity: .88; }
+  #login-start-btn:active { transform: scale(.98); }
+
   /* ── Left Sidebar ── */
   #sidebar {
     width: 240px; min-width: 240px;
@@ -32,13 +95,27 @@
     border-right: 1px solid var(--border);
     display: flex; flex-direction: column; overflow: hidden;
   }
-  #sidebar-header { padding: 18px 14px 12px; border-bottom: 1px solid var(--border); }
-  #sidebar-header h1 {
-    font-size: 15px; font-weight: 700;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  #sidebar-header { padding: 16px 14px 12px; border-bottom: 1px solid var(--border); }
+
+  /* SMXDrives text logo in sidebar */
+  .smx-logo-sidebar {
+    display: flex; align-items: center; gap: 0; line-height: 1;
   }
-  #sidebar-header p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .smx-logo-sidebar .smx-top {
+    font-size: 18px; font-weight: 900; letter-spacing: -0.5px;
+    display: flex; align-items: baseline;
+  }
+  .smx-logo-sidebar .smx-sm { color: #ffffff; }
+  .smx-logo-sidebar .smx-x  { color: #e53535; }
+  .smx-logo-sidebar .smx-drives-small {
+    font-size: 8px; font-weight: 700; letter-spacing: 2.5px;
+    color: #e53535; text-transform: uppercase;
+    display: block; margin-top: 1px; margin-left: 1px;
+  }
+  .smx-logo-sidebar .smx-text-col {
+    display: flex; flex-direction: column;
+  }
+  #sidebar-header p { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
   .sidebar-btn {
     margin: 8px 10px 0;
@@ -124,10 +201,41 @@
   }
   .session-item:hover .s-del { opacity: 1; }
 
-  #sidebar-foot { padding: 10px 12px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
+  #sidebar-foot {
+    padding: 10px 12px; border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--muted);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  #user-info-row {
+    display: flex; align-items: center; gap: 7px; padding: 5px 0;
+  }
+  .user-avatar-sm {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(135deg, #e53535, #7c6ff7);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  #user-name-label { flex: 1; font-size: 11px; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #switch-user-btn {
+    font-size: 10px; color: var(--muted); background: none; border: none;
+    cursor: pointer; padding: 2px 5px; border-radius: 4px;
+    transition: color .15s;
+  }
+  #switch-user-btn:hover { color: var(--error); }
 
   /* ── Main ── */
-  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+  /* Hamburger (mobile only) */
+  #hamburger-btn {
+    display: none;
+    position: fixed; top: 10px; left: 10px; z-index: 1000;
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--sidebar); border: 1px solid var(--border);
+    color: var(--text); cursor: pointer;
+    align-items: center; justify-content: center;
+  }
 
   /* Phase bar */
   #phase-bar {
@@ -140,6 +248,10 @@
   .phase-step.done   { color: var(--success); }
   .phase-sep { color: var(--border); font-size: 11px; margin: 0 2px; }
 
+  /* Spinning indicator on Building step when active */
+  .phase-step#ph-build.active .ph-build-icon { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
   /* Chat + Structure split */
   #content-area { flex: 1; display: flex; overflow: hidden; }
 
@@ -149,7 +261,7 @@
   .msg { display: flex; gap: 10px; max-width: 720px; }
   .msg.user { flex-direction: row-reverse; margin-left: auto; }
   .avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-  .avatar.bot  { background: linear-gradient(135deg, var(--accent), #9f7bea); }
+  .avatar.bot  { background: linear-gradient(135deg, #e53535, #c02020); }
   .avatar.user { background: var(--user-bg); border: 1px solid var(--border); }
   .bubble { padding: 11px 14px; border-radius: var(--radius); font-size: 13.5px; line-height: 1.65; max-width: 640px; }
   .msg.bot  .bubble { background: var(--bot-bg); border: 1px solid var(--border); }
@@ -210,14 +322,31 @@
   .mini-task.running  { border-color: var(--warning); }
   .mini-task.done     { border-color: var(--success); opacity: .7; }
 
-  /* Typing */
+  /* Typing — enhanced shimmer */
   #typing-indicator { display: none; align-items: center; gap: 10px; padding: 0 18px; margin-bottom: 4px; }
   #typing-indicator.visible { display: flex; }
+  .typing-dots-wrap {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bot-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 8px 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .typing-dots-wrap::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(124,111,247,.12) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.8s infinite;
+  }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
   .typing-dots { display: flex; gap: 4px; }
-  .typing-dot { width: 6px; height: 6px; background: var(--muted); border-radius: 50%; animation: bounce 1.2s infinite; }
+  .typing-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; animation: bounce 1.2s infinite; }
   .typing-dot:nth-child(2) { animation-delay: .2s; }
   .typing-dot:nth-child(3) { animation-delay: .4s; }
-  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+  @keyframes bounce { 0%,60%,100% { transform: translateY(0); opacity:.6; } 30% { transform: translateY(-5px); opacity:1; } }
 
   /* Approval card */
   .approval-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin: 2px 0 6px 40px; max-width: 640px; }
@@ -273,6 +402,24 @@
   }
   .src-tab.active { color: var(--accent); border-color: var(--accent); background: rgba(124,111,247,.08); }
 
+  /* ── Mobile Responsive ── */
+  @media (max-width: 768px) {
+    #sidebar {
+      position: fixed; left: -240px; top: 0; bottom: 0;
+      z-index: 500; transition: left .25s ease;
+    }
+    #sidebar.mobile-open { left: 0; }
+    #structure-panel { display: none; }
+    #hamburger-btn { display: flex; }
+    #phase-bar { padding: 8px 52px 8px 18px; }
+    /* Sidebar overlay backdrop */
+    #sidebar-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 499;
+    }
+    #sidebar-backdrop.open { display: block; }
+  }
+
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
@@ -280,6 +427,26 @@
 </style>
 </head>
 <body>
+
+<!-- Login Overlay -->
+<div id="login-overlay">
+  <div id="login-box">
+    <div class="smx-logo-login">
+      <div class="smx-top">
+        <span class="smx-sm">SM</span><span class="smx-x">X</span>
+      </div>
+      <span class="smx-drives">DRIVES</span>
+    </div>
+    <h2>Welcome to SMXDrives AI</h2>
+    <p>Enter your name to get started.<br>Your conversations will be saved separately.</p>
+    <input type="text" id="login-name-input" placeholder="Your name..." maxlength="40"
+      onkeydown="if(event.key==='Enter') doLogin()" autocomplete="off" />
+    <button id="login-start-btn" onclick="doLogin()">Start Building</button>
+  </div>
+</div>
+
+<!-- Sidebar backdrop (mobile) -->
+<div id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
 
 <!-- Hidden folder file input for native picker -->
 <input type="file" id="folder-file-input" webkitdirectory style="display:none" onchange="onFolderSelected(this)">
@@ -320,15 +487,24 @@
   </div>
 </div>
 
-<!-- Overlay removed: app loads directly to main UI -->
+<!-- Hamburger button (mobile) -->
+<button id="hamburger-btn" onclick="toggleMobileSidebar()">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+</button>
 
 <!-- Left Sidebar -->
 <div id="sidebar">
   <div id="sidebar-header">
-    <h1 style="display:flex;align-items:center;gap:7px">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:#7c6ff7;flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v6h6V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="16.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="16.5" r="1.2" fill="currentColor" stroke="none"/></svg>
-      Builder Bot
-    </h1>
+    <div class="smx-logo-sidebar">
+      <div class="smx-text-col">
+        <div class="smx-top">
+          <span class="smx-sm">SM</span><span class="smx-x">X</span>
+        </div>
+        <span class="smx-drives-small">DRIVES</span>
+      </div>
+    </div>
     <p>Autonomous project engineer</p>
   </div>
 
@@ -352,7 +528,17 @@
 
   <div id="session-list"></div>
 
-  <div id="sidebar-foot"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);margin-right:5px;vertical-align:middle"></span>Server running</div>
+  <div id="sidebar-foot">
+    <div style="display:flex;align-items:center;gap:5px">
+      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success)"></span>
+      Server running
+    </div>
+    <div id="user-info-row">
+      <div class="user-avatar-sm" id="user-avatar-sm">?</div>
+      <span id="user-name-label">Not logged in</span>
+      <button id="switch-user-btn" onclick="switchUser()" title="Switch user">Switch</button>
+    </div>
+  </div>
 </div>
 
 <!-- Main -->
@@ -366,7 +552,12 @@
     <span class="phase-sep">›</span>
     <div class="phase-step" id="ph-tasks"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/></svg> Planning</div>
     <span class="phase-sep">›</span>
-    <div class="phase-step" id="ph-build"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Building</div>
+    <div class="phase-step" id="ph-build">
+      <span class="ph-build-icon" style="display:inline-flex;align-items:center">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </span>
+      Building
+    </div>
     <span class="phase-sep">›</span>
     <div class="phase-step" id="ph-done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg> Complete</div>
   </div>
@@ -403,11 +594,13 @@
 
   <!-- Typing indicator -->
   <div id="typing-indicator">
-    <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c6ff7,#9f7bea);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v6h6V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="16.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="16.5" r="1.2" fill="currentColor" stroke="none"/></svg></div>
-    <div class="typing-dots">
-      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+    <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#e53535,#c02020);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:12px;font-weight:900">X</div>
+    <div class="typing-dots-wrap">
+      <div class="typing-dots">
+        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+      </div>
+      <span style="font-size:12px;color:var(--muted)">SMXDrives AI is thinking...</span>
     </div>
-    <span style="font-size:12px;color:var(--muted)">Builder Bot is thinking...</span>
   </div>
 
   <!-- Input -->
@@ -419,7 +612,7 @@
     </div>
     <div id="status-bar">
       <div class="status-dot off" id="conn-dot"></div>
-      <span id="conn-label">Disconnected</span>
+      <span id="conn-label">Connecting...</span>
     </div>
   </div>
 </div>
@@ -451,6 +644,48 @@ let ws = null, sessionId = null, execLog = null, progressWrap = null;
 let taskTotal = 0, taskDone = 0;
 let projectStructure = {};   // path → type (file/dir)
 let taskPlan = [];
+let _wasConnected = false;   // Task 4: flicker fix flag
+
+// ── User / Login ───────────────────────────────────────
+let currentUser = '';
+
+function getUser() {
+  return localStorage.getItem('smx_user') || '';
+}
+
+function doLogin() {
+  const input = document.getElementById('login-name-input');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  localStorage.setItem('smx_user', name);
+  currentUser = name;
+  document.getElementById('login-overlay').classList.remove('open');
+  updateUserUI();
+  initApp();
+}
+
+function switchUser() {
+  if (!confirm('Switch user? This will reload the page.')) return;
+  localStorage.removeItem('smx_user');
+  location.reload();
+}
+
+function updateUserUI() {
+  const name = currentUser || getUser();
+  document.getElementById('user-name-label').textContent = name || 'Guest';
+  const av = document.getElementById('user-avatar-sm');
+  av.textContent = (name || 'G').charAt(0).toUpperCase();
+}
+
+// ── Mobile Sidebar ─────────────────────────────────────
+function toggleMobileSidebar() {
+  document.getElementById('sidebar').classList.toggle('mobile-open');
+  document.getElementById('sidebar-backdrop').classList.toggle('open');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebar-backdrop').classList.remove('open');
+}
 
 // ── Utilities ──────────────────────────────────────────
 const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -567,7 +802,8 @@ function appendMessage(role, content) {
   div.className = `msg ${role}`;
   const av = document.createElement('div');
   av.className = `avatar ${role==='user'?'user':'bot'}`;
-  av.innerHTML = role==='user' ? IC.user : IC.bot;
+  // Bot avatar: SMX X letter
+  av.innerHTML = role==='user' ? IC.user : '<span style="font-size:11px;font-weight:900;color:#fff">X</span>';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.innerHTML = md(content);
@@ -668,15 +904,25 @@ function updateProgress(done, total, label) {
 
 // ── WebSocket ──────────────────────────────────────────
 let _reconnectTimer = null;
+
 function connect(sid) {
   if (ws) { ws.close(); ws=null; }
   if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer=null; }
   sessionId=sid; execLog=null; progressWrap=null;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws/${sid}`);
-  ws.onopen  = () => { setConnected(true); };
+  const user = getUser();
+  const userParam = user ? `?user=${encodeURIComponent(user)}` : '';
+  ws = new WebSocket(`${proto}://${location.host}/ws/${sid}${userParam}`);
+
+  ws.onopen  = () => {
+    _wasConnected = true;
+    setConnected(true);
+  };
   ws.onclose = () => {
-    setConnected(false);
+    // Task 4: Only show disconnected if we were previously connected (avoids initial flicker)
+    if (_wasConnected) {
+      setConnected(false);
+    }
     // Auto-reconnect after 3s (handles Render free tier spin-down)
     _reconnectTimer = setTimeout(() => { if(sessionId) connect(sessionId); }, 3000);
   };
@@ -742,10 +988,12 @@ function sendMessage() {
   appendMessage('user',txt);
   ws.send(JSON.stringify({type:'message',content:txt}));
   inp.value=''; autoResize(inp);
-  // Auto-name session from first user message
+  // Auto-name session from first user message — use first 5 words (Task 3)
   _msgCount++;
   if (_msgCount === 1 && sessionId) {
-    const name = txt.slice(0, 40) + (txt.length > 40 ? '...' : '');
+    const words = txt.trim().split(/\s+/);
+    const name = words.slice(0, 5).join(' ') + (words.length > 5 ? '...' : '');
+    const user = getUser();
     fetch(`/api/session/${sessionId}/name`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
@@ -835,7 +1083,7 @@ function submitFolder() {
     startNewSession(()=>{
       setTimeout(()=>{
         ws.send(JSON.stringify({type:'set_folder',path:p}));
-        appendMessage('user',`📁 ${p}`);
+        appendMessage('user',`Folder: ${p}`);
       },1000);
     });
     return;
@@ -850,13 +1098,16 @@ function openExistingFromOverlay() {
 
 // ── Sessions ───────────────────────────────────────────
 async function startNewSession(cb) {
-  const res = await fetch('/api/sessions',{method:'POST'});
+  const user = getUser();
+  const userParam = user ? `?user=${encodeURIComponent(user)}` : '';
+  const res = await fetch(`/api/sessions${userParam}`,{method:'POST'});
   const {session_id} = await res.json();
   document.getElementById('chat-area').innerHTML='';
   projectStructure={}; taskPlan=[]; _msgCount=0;
   document.getElementById('structure-tree').innerHTML=
     '<div style="color:var(--muted);font-size:11px;padding:8px 0">Structure will appear as files are created...</div>';
   document.getElementById('tasks-panel').innerHTML='';
+  _wasConnected = false;
   connect(session_id);
   loadSessions(session_id);
   if(cb) cb();
@@ -898,14 +1149,18 @@ async function loadSession(sid) {
   // Reset message count so auto-naming works correctly
   _msgCount = (data.history||[]).filter(m => m.role === 'user').length;
 
+  _wasConnected = false;
   connect(sid);
   loadSessions(sid);
+  closeMobileSidebar();
 }
 
 let _allSessions = [];
 
 async function loadSessions(activeSid) {
-  const res = await fetch('/api/sessions');
+  const user = getUser();
+  const userParam = user ? `?user=${encodeURIComponent(user)}` : '';
+  const res = await fetch(`/api/sessions${userParam}`);
   _allSessions = await res.json();
   renderSessionList(_allSessions, activeSid || sessionId);
 }
@@ -967,19 +1222,33 @@ function phaseLabel(p) {
     executing:'Building',complete:'Complete'}[p]||p;
 }
 
-function openExistingFromOverlay() { openFolderModal(); }
-
 // ── Init ───────────────────────────────────────────────
-window.onload = async () => {
-  const sessions = await fetch('/api/sessions').then(r=>r.json());
+async function initApp() {
+  updateUserUI();
+  const user = getUser();
+  const userParam = user ? `?user=${encodeURIComponent(user)}` : '';
+  const sessions = await fetch(`/api/sessions${userParam}`).then(r=>r.json());
   if (sessions.length > 0) {
-    // Resume most recent session
+    // Resume most recent session for this user
     await loadSession(sessions[0].id);
   } else {
     // Auto-start a fresh session
     await startNewSession();
   }
   switchTab('structure');
+}
+
+window.onload = () => {
+  const user = localStorage.getItem('smx_user');
+  if (!user) {
+    // Show login screen
+    document.getElementById('login-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('login-name-input').focus(), 100);
+  } else {
+    currentUser = user;
+    updateUserUI();
+    initApp();
+  }
 };
 </script>
 </body>

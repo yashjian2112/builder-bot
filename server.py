@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from typing import List
@@ -34,7 +34,7 @@ SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 init_db()
 
-app = FastAPI(title="Builder Bot")
+app = FastAPI(title="SMXDrives")
 
 # Serve static files
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -72,8 +72,8 @@ async def root():
 
 
 @app.get("/api/sessions")
-async def api_list_sessions():
-    sessions = list_sessions()
+async def api_list_sessions(user: str = Query(default="")):
+    sessions = list_sessions(user=user)
     # Attach message count to each session
     for s in sessions:
         msgs = get_messages(s["id"])
@@ -82,8 +82,8 @@ async def api_list_sessions():
 
 
 @app.post("/api/sessions")
-async def api_create_session():
-    sid = create_session()
+async def api_create_session(user: str = Query(default="")):
+    sid = create_session(user=user)
     return {"session_id": sid}
 
 
@@ -143,7 +143,7 @@ async def serve_mockup(sid: str, name: str):
 # ─── WebSocket ───────────────────────────────────────────
 
 @app.websocket("/ws/{session_id}")
-async def ws_endpoint(websocket: WebSocket, session_id: str):
+async def ws_endpoint(websocket: WebSocket, session_id: str, user: str = Query(default="")):
     await pool.add(session_id, websocket)
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -160,13 +160,16 @@ async def ws_endpoint(websocket: WebSocket, session_id: str):
     # Send welcome if first time
     session = get_session(session_id)
     if not session:
-        session_id = create_session()
+        session_id = create_session(user=user)
         session = get_session(session_id)
+    elif user and not session.get("user"):
+        # Attach user to session if not already set
+        update_session(session_id, user=user)
 
     history = get_conversation_history(session_id)
     if not history:
         welcome = (
-            "Hey! I'm **Builder Bot** — your autonomous project engineer.\n\n"
+            "Hey! I'm **SMXDrives AI** — your autonomous project engineer.\n\n"
             "I'll help you go from idea → UI design → working code, step by step.\n\n"
             "Tell me: are you starting a **new project**, or do you want to enhance an **existing app**?"
         )
@@ -528,7 +531,10 @@ async def ws_endpoint(websocket: WebSocket, session_id: str):
                         await pool.send(session_id, {
                             "type": "message",
                             "role": "assistant",
-                            "content": f"🚀 Starting implementation! Building `{proj_name}` ({len(task_plan)} tasks)\n\nAll files will be created in:\n`{proj_dir}`",
+                            "content": (
+                                f"Starting implementation! Building `{proj_name}` ({len(task_plan)} tasks)\n\n"
+                                f"All files will be created in:\n`{proj_dir}`"
+                            ),
                             "phase": "executing",
                         })
 
@@ -570,7 +576,7 @@ async def ws_endpoint(websocket: WebSocket, session_id: str):
                             "type": "message",
                             "role": "assistant",
                             "content": (
-                                f"🎉 **All {len(task_plan)} tasks complete!**\n\n"
+                                f"**All {len(task_plan)} tasks complete!**\n\n"
                                 f"Your project is ready at:\n`{proj_dir}`\n\n"
                                 f"To run it: check the README.md that was generated inside the project folder."
                             ),

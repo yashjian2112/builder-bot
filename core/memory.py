@@ -88,7 +88,8 @@ def init_db() -> None:
                 requirements   TEXT,
                 task_plan      TEXT,
                 project_folder TEXT,
-                tech_stack     TEXT
+                tech_stack     TEXT,
+                user           TEXT DEFAULT ''
             )
         """)
         cur.execute(f"""
@@ -101,17 +102,22 @@ def init_db() -> None:
                 metadata   TEXT
             )
         """)
+        # Migrate existing DBs that don't have the user column yet
+        try:
+            cur.execute("ALTER TABLE sessions ADD COLUMN user TEXT DEFAULT ''")
+        except Exception:
+            pass  # Column already exists — ignore
 
 
 # ── Session CRUD ─────────────────────────────────────────────────────────────
 
-def create_session(name: str = "") -> str:
+def create_session(name: str = "", user: str = "") -> str:
     sid = str(uuid.uuid4())[:8]
     now = datetime.now().isoformat()
     with _conn() as cur:
         cur.execute(
-            "INSERT INTO sessions (id, name, phase, created_at, updated_at) VALUES (?,?,?,?,?)",
-            (sid, name or f"Project {sid}", "greeting", now, now),
+            "INSERT INTO sessions (id, name, phase, created_at, updated_at, user) VALUES (?,?,?,?,?,?)",
+            (sid, name or f"Project {sid}", "greeting", now, now, user),
         )
     return sid
 
@@ -123,8 +129,13 @@ def get_session(session_id: str) -> Optional[dict]:
         ).fetchone()
 
 
-def list_sessions() -> list[dict]:
+def list_sessions(user: str = "") -> list[dict]:
     with _conn() as cur:
+        if user:
+            return cur.execute(
+                "SELECT * FROM sessions WHERE user=? ORDER BY updated_at DESC",
+                (user,),
+            ).fetchall()
         return cur.execute(
             "SELECT * FROM sessions ORDER BY updated_at DESC"
         ).fetchall()
