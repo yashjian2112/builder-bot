@@ -452,14 +452,31 @@ async def ws_endpoint(websocket: WebSocket, session_id: str, token: str = Query(
                         "content": f"Fetching GitHub repository `{folder}`... this may take a moment.",
                         "phase": "code_analysis",
                     })
-                    import tempfile, subprocess as sp
+                    import tempfile, subprocess as sp, shutil as _shutil
+                    if not _shutil.which("git"):
+                        await pool.send(session_id, {
+                            "type": "message",
+                            "role": "assistant",
+                            "content": "Git is not installed on this server. Cannot clone GitHub repositories.",
+                            "phase": "awaiting_folder",
+                        })
+                        continue
                     tmp_dir = tempfile.mkdtemp(prefix="builder_bot_")
-                    clone_result = await asyncio.get_event_loop().run_in_executor(
-                        None, lambda: sp.run(
-                            ["git", "clone", "--depth=1", folder, tmp_dir],
-                            capture_output=True, text=True
+                    try:
+                        clone_result = await asyncio.get_event_loop().run_in_executor(
+                            None, lambda: sp.run(
+                                ["git", "clone", "--depth=1", folder, tmp_dir],
+                                capture_output=True, text=True, timeout=120
+                            )
                         )
-                    )
+                    except Exception as clone_exc:
+                        await pool.send(session_id, {
+                            "type": "message",
+                            "role": "assistant",
+                            "content": f"Failed to clone repository: {clone_exc}",
+                            "phase": "awaiting_folder",
+                        })
+                        continue
                     if clone_result.returncode != 0:
                         await pool.send(session_id, {
                             "type": "message",
