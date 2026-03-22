@@ -55,7 +55,7 @@
   /* Folder Modal */
   #folder-modal-overlay {
     display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.65); z-index: 200;
+    background: rgba(0,0,0,0.65); z-index: 9999;
     align-items: center; justify-content: center;
   }
   #folder-modal-overlay.open { display: flex; }
@@ -596,7 +596,8 @@ function updateProgress(done, total, label) {
 function connect(sid) {
   if (ws) { ws.close(); ws=null; }
   sessionId=sid; execLog=null; progressWrap=null;
-  ws = new WebSocket(`ws://${location.host}/ws/${sid}`);
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/${sid}`);
   ws.onopen  = () => { setConnected(true); document.getElementById('overlay').classList.add('hidden'); };
   ws.onclose = () => setConnected(false);
   ws.onmessage = ({data}) => handleMsg(JSON.parse(data));
