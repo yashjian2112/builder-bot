@@ -101,6 +101,18 @@ async def auth_status():
     return {"has_users": user_count() > 0}
 
 
+@app.get("/api/auth/reset")
+async def auth_reset(secret: str = ""):
+    """Delete all users so setup can run again. Requires RESET_SECRET env var to match."""
+    expected = os.environ.get("RESET_SECRET", "")
+    if not expected or secret != expected:
+        raise HTTPException(status_code=403, detail="Invalid or missing reset secret")
+    from core.memory import _conn
+    with _conn() as cur:
+        cur.execute("DELETE FROM users")
+    return {"ok": True, "message": "All users deleted — visit the app to create a new admin account"}
+
+
 @app.post("/api/auth/login")
 async def auth_login(body: dict):
     username = body.get("username", "").strip()
