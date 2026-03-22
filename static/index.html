@@ -864,11 +864,40 @@ async function startNewSession(cb) {
 
 async function loadSession(sid) {
   document.getElementById('chat-area').innerHTML='';
-  projectStructure={}; taskPlan=[];
+  projectStructure={}; taskPlan=[]; execLog=null; progressWrap=null;
+  document.getElementById('structure-tree').innerHTML=
+    '<div style="color:var(--muted);font-size:11px;padding:8px 0">Structure will appear as files are created...</div>';
+  document.getElementById('tasks-panel').innerHTML='';
+
   const res = await fetch(`/api/session/${sid}`);
   const data = await res.json();
-  for(const m of (data.history||[])) appendMessage(m.role,m.content);
+
+  // Restore chat messages
+  for(const m of (data.history||[])) appendMessage(m.role, m.content);
   if(data.phase) updatePhase(data.phase);
+
+  // Restore task plan into the right panel
+  if (data.task_plan) {
+    try {
+      const plan = typeof data.task_plan === 'string' ? JSON.parse(data.task_plan) : data.task_plan;
+      if (Array.isArray(plan) && plan.length) {
+        renderTaskPanel(plan);
+        // Mark completed tasks if session is done/past execution
+        const donePhases = ['complete','executing'];
+        if (donePhases.includes(data.phase)) {
+          plan.forEach(t => setTaskStatus(t.id, data.phase === 'complete' ? 'done' : 'running'));
+        }
+        // Switch to tasks tab if there's a plan to show
+        if (['awaiting_task_approval','executing','complete'].includes(data.phase)) {
+          switchTab('tasks');
+        }
+      }
+    } catch(e) { console.warn('Could not restore task plan', e); }
+  }
+
+  // Reset message count so auto-naming works correctly
+  _msgCount = (data.history||[]).filter(m => m.role === 'user').length;
+
   connect(sid);
   loadSessions(sid);
 }
