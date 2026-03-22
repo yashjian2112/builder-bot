@@ -237,6 +237,14 @@
   .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
   .status-dot.off { background: var(--error); }
 
+  /* Source tabs in folder modal */
+  .src-tab {
+    flex: 1; padding: 8px; background: transparent; border: none;
+    color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all .15s;
+  }
+  .src-tab.active { color: var(--accent); border-color: var(--accent); background: rgba(124,111,247,.08); }
+
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
@@ -263,16 +271,35 @@
 <!-- Folder Modal -->
 <div id="folder-modal-overlay">
   <div id="folder-modal">
-    <h3>📁 Open Existing App</h3>
-    <p>Click "Browse" to pick your project folder, or type the full path manually below.</p>
-    <div class="folder-browse-row">
-      <input type="text" id="folder-path-input" placeholder="/Users/you/my-project"
-        onkeydown="if(event.key==='Enter') submitFolder()" />
-      <button id="browse-btn" onclick="document.getElementById('folder-file-input').click()">📂 Browse</button>
+    <h3 style="display:flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      Open Existing App
+    </h3>
+    <div style="display:flex;gap:0;margin:14px 0 6px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <button class="src-tab active" id="tab-local" onclick="switchSrcTab('local')">Local Folder</button>
+      <button class="src-tab" id="tab-github" onclick="switchSrcTab('github')">GitHub Repo</button>
+    </div>
+    <div id="src-local">
+      <p>Select your project folder or type the full path.</p>
+      <div class="folder-browse-row">
+        <input type="text" id="folder-path-input" placeholder="/Users/you/my-project"
+          onkeydown="if(event.key==='Enter') submitFolder()" />
+        <button id="browse-btn" onclick="document.getElementById('folder-file-input').click()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 16l3-5h15l-3 5H2z"/></svg>
+          Browse
+        </button>
+      </div>
+    </div>
+    <div id="src-github" style="display:none">
+      <p>Paste a public GitHub repo URL to analyze its code.</p>
+      <div class="folder-browse-row">
+        <input type="text" id="github-url-input" placeholder="https://github.com/user/repo"
+          onkeydown="if(event.key==='Enter') submitGithub()" />
+      </div>
     </div>
     <div class="folder-modal-actions">
       <button id="folder-cancel-btn" onclick="closeFolderModal()">Cancel</button>
-      <button id="folder-submit-btn" onclick="submitFolder()">Analyze Project →</button>
+      <button id="folder-submit-btn" onclick="activeTab==='github'?submitGithub():submitFolder()">Analyze Project</button>
     </div>
   </div>
 </div>
@@ -280,12 +307,20 @@
 <!-- Launch overlay -->
 <div id="overlay">
   <div class="overlay-box">
-    <div class="logo">🤖</div>
+    <div class="logo">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:#7c6ff7"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v6h6V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="16.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="16.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+    </div>
     <h2>Builder Bot</h2>
     <p>Your autonomous AI project engineer.<br>Start a new project or load an existing one.</p>
     <div class="ov-btns">
-      <button class="ov-btn prim" onclick="startNewSession()">✨ New Project</button>
-      <button class="ov-btn sec"  onclick="openExistingFromOverlay()">📁 Existing App</button>
+      <button class="ov-btn prim" onclick="startNewSession()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        New Project
+      </button>
+      <button class="ov-btn sec" onclick="openExistingFromOverlay()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Existing App
+      </button>
     </div>
   </div>
 </div>
@@ -293,17 +328,26 @@
 <!-- Left Sidebar -->
 <div id="sidebar">
   <div id="sidebar-header">
-    <h1>🤖 Builder Bot</h1>
+    <h1 style="display:flex;align-items:center;gap:7px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:#7c6ff7;flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v6h6V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="16.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="16.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+      Builder Bot
+    </h1>
     <p>Autonomous project engineer</p>
   </div>
 
-  <button class="sidebar-btn primary" onclick="startNewSession()">✨ New Project</button>
-  <button class="sidebar-btn secondary" onclick="openFolderModal()">📁 Open Existing App</button>
+  <button class="sidebar-btn primary" onclick="startNewSession()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+    New Project
+  </button>
+  <button class="sidebar-btn secondary" onclick="openFolderModal()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+    Open Existing App
+  </button>
 
 
   <div id="session-list"></div>
 
-  <div id="sidebar-foot" id="cli-status">⚪ Checking...</div>
+  <div id="sidebar-foot" id="cli-status"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);margin-right:5px;vertical-align:middle"></span>Server running</div>
 </div>
 
 <!-- Main -->
@@ -311,15 +355,15 @@
 
   <!-- Phase bar -->
   <div id="phase-bar">
-    <div class="phase-step" id="ph-discovery">🔍 Discovery</div>
+    <div class="phase-step" id="ph-discovery"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Discovery</div>
     <span class="phase-sep">›</span>
-    <div class="phase-step" id="ph-ui">🎨 UI Design</div>
+    <div class="phase-step" id="ph-ui"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1 1 2.48 1.02 3.5 1.02 2.2 0 3-1.8 3-3.02 0-1.68-1.33-3.04-3.02-3.04z"/></svg> UI Design</div>
     <span class="phase-sep">›</span>
-    <div class="phase-step" id="ph-tasks">📋 Planning</div>
+    <div class="phase-step" id="ph-tasks"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/></svg> Planning</div>
     <span class="phase-sep">›</span>
-    <div class="phase-step" id="ph-build">⚙️ Building</div>
+    <div class="phase-step" id="ph-build"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Building</div>
     <span class="phase-sep">›</span>
-    <div class="phase-step" id="ph-done">✅ Complete</div>
+    <div class="phase-step" id="ph-done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg> Complete</div>
   </div>
 
   <!-- Chat + Right panel -->
@@ -335,8 +379,12 @@
         <span id="file-count">0 files</span>
       </div>
       <div class="panel-tabs">
-        <div class="panel-tab active" id="tab-structure" onclick="switchTab('structure')">📁 Structure</div>
-        <div class="panel-tab" id="tab-tasks" onclick="switchTab('tasks')">📋 Tasks</div>
+        <div class="panel-tab active" id="tab-structure" onclick="switchTab('structure')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Structure
+        </div>
+        <div class="panel-tab" id="tab-tasks" onclick="switchTab('tasks')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/></svg> Tasks
+        </div>
       </div>
       <div id="structure-tree">
         <div style="color:var(--muted);font-size:11px;padding:8px 0">
@@ -350,7 +398,7 @@
 
   <!-- Typing indicator -->
   <div id="typing-indicator">
-    <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c6ff7,#9f7bea);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">🤖</div>
+    <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c6ff7,#9f7bea);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v6h6V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="16.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="16.5" r="1.2" fill="currentColor" stroke="none"/></svg></div>
     <div class="typing-dots">
       <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
     </div>
@@ -362,7 +410,7 @@
     <div id="input-row">
       <textarea id="user-input" rows="1" placeholder="Describe your project or answer the bot's questions…"
         onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-      <button id="send-btn" onclick="sendMessage()" title="Send (Enter)">↑</button>
+      <button id="send-btn" onclick="sendMessage()" title="Send (Enter)"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="22,2 15,22 11,13 2,9"/></svg></button>
     </div>
     <div id="status-bar">
       <div class="status-dot off" id="conn-dot"></div>
@@ -372,6 +420,27 @@
 </div>
 
 <script>
+// ── SVG Icons ──────────────────────────────────────────
+const IC = {
+  bot:      `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v6h6V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="16.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="16.5" r="1.2" fill="currentColor" stroke="none"/></svg>`,
+  plus:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>`,
+  folder:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`,
+  folderOp: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M2 16l3-5h15l-3 5H2z"/></svg>`,
+  search:   `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`,
+  brush:    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1 1 2.48 1.02 3.5 1.02 2.2 0 3-1.8 3-3.02 0-1.68-1.33-3.04-3.02-3.04z"/></svg>`,
+  list:     `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/></svg>`,
+  gear:     `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+  check:    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>`,
+  user:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  file:     `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13,2 13,9 20,9"/></svg>`,
+  clock:    `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>`,
+  spin:     `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+  xmark:    `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  pencil:   `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+  eye:      `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+  send:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9" fill="currentColor" stroke="none"/></svg>`,
+};
+
 // ── State ──────────────────────────────────────────────
 let ws = null, sessionId = null, execLog = null, progressWrap = null;
 let taskTotal = 0, taskDone = 0;
@@ -445,7 +514,7 @@ function renderStructure() {
     const depth = path.split('/').length - 1;
     const name  = path.split('/').pop();
     const pad   = '&nbsp;'.repeat(depth * 3);
-    const icon  = type === 'dir' ? '📁' : '📄';
+    const icon  = type === 'dir' ? IC.folder : IC.file;
     const cls   = type === 'dir' ? 'dir' : (type==='new' ? 'new' : 'file');
     html += `<div class="tree-line ${cls}">${pad}<span class="icon">${icon}</span>${esc(name)}</div>`;
   });
@@ -474,15 +543,15 @@ function renderTaskPanel(plan) {
     <div class="mini-task" id="mt-${t.id}">
       <span class="m-id">${t.id}</span>
       <span class="m-title">${esc(t.title)}</span>
-      <span class="m-status">⏳</span>
+      <span class="m-status">${IC.clock}</span>
     </div>`).join('');
 }
 
 function setTaskStatus(taskId, status) {
   const el = document.getElementById(`mt-${taskId}`);
   if (!el) return;
-  const icons = { running:'🔄', done:'✅', error:'❌' };
-  el.querySelector('.m-status').textContent = icons[status] || '⏳';
+  const icons = { running:IC.spin, done:IC.check, error:IC.xmark };
+  el.querySelector('.m-status').innerHTML = icons[status] || IC.clock;
   el.className = 'mini-task ' + (status==='done'?'done':status==='running'?'running':'');
 }
 
@@ -493,7 +562,7 @@ function appendMessage(role, content) {
   div.className = `msg ${role}`;
   const av = document.createElement('div');
   av.className = `avatar ${role==='user'?'user':'bot'}`;
-  av.textContent = role==='user'?'👤':'🤖';
+  av.innerHTML = role==='user' ? IC.user : IC.bot;
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.innerHTML = md(content);
@@ -519,15 +588,15 @@ function appendApproval(data) {
       </div>`).join('')}</div>`;
   }
   const prev = data.preview_url
-    ? `<a class="btn-preview" href="${data.preview_url}" target="_blank">👁 Preview Mockup</a>` : '';
+    ? `<a class="btn-preview" href="${data.preview_url}" target="_blank">${IC.eye} Preview Mockup</a>` : '';
 
   card.innerHTML = `
     <h3>${esc(data.title)}</h3><p>${esc(data.description)}</p>
     ${taskHtml}
     <div class="approval-btns" style="margin-top:10px">
       ${prev}
-      <button class="btn-approve" onclick="approve('${data.approval_id}','approve',this)">✅ Approve</button>
-      <button class="btn-reject"  onclick="showReject('${data.approval_id}',this)">✏️ Request Changes</button>
+      <button class="btn-approve" onclick="approve('${data.approval_id}','approve',this)">${IC.check} Approve</button>
+      <button class="btn-reject"  onclick="showReject('${data.approval_id}',this)">${IC.pencil} Request Changes</button>
     </div>
     <div id="rj-${data.approval_id}" style="display:none;margin-top:10px">
       <textarea id="rjt-${data.approval_id}" placeholder="What would you like changed?"
@@ -546,12 +615,12 @@ function showReject(id,btn) {
   btn.style.display='none';
 }
 function approve(id, decision, btn) {
-  if(btn) btn.closest('.approval-btns').innerHTML='<span style="color:var(--success);font-size:12.5px">✅ Approved — on it...</span>';
+  if(btn) btn.closest('.approval-btns').innerHTML='<span style="color:var(--success);font-size:12.5px;display:flex;align-items:center;gap:5px">'+IC.check+' Approved — on it...</span>';
   ws.send(JSON.stringify({type:'approval',approval_id:id,decision}));
 }
 function sendReject(id) {
   const fb = document.getElementById(`rjt-${id}`).value.trim();
-  document.getElementById(`apc-${id}`).innerHTML='<p style="color:var(--warning);font-size:12.5px">✏️ Feedback sent — revising...</p>';
+  document.getElementById(`apc-${id}`).innerHTML='<p style="color:var(--warning);font-size:12.5px;display:flex;align-items:center;gap:5px">'+IC.pencil+' Feedback sent — revising...</p>';
   ws.send(JSON.stringify({type:'approval',approval_id:id,decision:'reject',feedback:fb}));
 }
 
@@ -622,7 +691,7 @@ function handleMsg(m) {
       taskTotal=m.total; taskDone=m.index;
       updateProgress(m.index,m.total,`Running: ${m.title}`);
       setTaskStatus(m.task_id,'running');
-      logLine(`\n▶ [${m.task_id}] ${m.title}`,'info');
+      logLine(`> [${m.task_id}] ${m.title}`,'info');
       // Add files for this task to structure
       (taskPlan.find(t=>t.id===m.task_id)?.files_to_create||[])
         .forEach(f=>addToStructure(f,'new'));
@@ -639,12 +708,12 @@ function handleMsg(m) {
       taskDone=m.index+1;
       setTaskStatus(m.task_id,'done');
       updateProgress(taskDone,m.total,`Done ${taskDone} of ${m.total} tasks`);
-      logLine(`✅ Task complete`,'success');
+      logLine(`[done] Task complete`,'success');
       break;
     case 'session_restored':
       updatePhase(m.phase||'greeting'); break;
     case 'error':
-      appendMessage('bot','❌ '+m.message); break;
+      appendMessage('bot','Error: '+m.message); break;
   }
 }
 
@@ -661,6 +730,15 @@ function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px'; }
 
 // ── Folder Modal ────────────────────────────────────────
+let activeTab = 'local';
+function switchSrcTab(tab) {
+  activeTab = tab;
+  document.getElementById('tab-local').className = 'src-tab' + (tab==='local'?' active':'');
+  document.getElementById('tab-github').className = 'src-tab' + (tab==='github'?' active':'');
+  document.getElementById('src-local').style.display = tab==='local' ? 'block' : 'none';
+  document.getElementById('src-github').style.display = tab==='github' ? 'block' : 'none';
+}
+
 function openFolderModal() {
   document.getElementById('folder-modal-overlay').classList.add('open');
   setTimeout(()=>document.getElementById('folder-path-input').focus(), 100);
@@ -669,6 +747,22 @@ function openFolderModal() {
 function closeFolderModal() {
   document.getElementById('folder-modal-overlay').classList.remove('open');
   document.getElementById('folder-path-input').value = '';
+  document.getElementById('github-url-input').value = '';
+}
+
+function submitGithub() {
+  const url = document.getElementById('github-url-input').value.trim();
+  if(!url) return;
+  closeFolderModal();
+  const sendGithub = () => {
+    ws.send(JSON.stringify({type:'set_folder', path: url, source:'github'}));
+    appendMessage('user', `GitHub: ${url}`);
+  };
+  if(!ws||ws.readyState!==1) {
+    startNewSession(()=>{ setTimeout(sendGithub, 1000); });
+  } else {
+    sendGithub();
+  }
 }
 
 function onFolderSelected(input) {
@@ -696,7 +790,7 @@ function submitFolder() {
     return;
   }
   ws.send(JSON.stringify({type:'set_folder',path:p}));
-  appendMessage('user',`📁 ${p}`);
+  appendMessage('user',`Folder: ${p}`);
 }
 
 function openExistingFromOverlay() {
@@ -746,17 +840,16 @@ async function loadSessions(activeSid) {
 }
 
 function phaseLabel(p) {
-  return {greeting:'🟡 Discovery',awaiting_folder:'📁 Awaiting folder',
-    code_analysis:'🔍 Analyzing',code_analysis_done:'🔍 Code analyzed',
-    requirements_done:'🎨 UI Design',awaiting_ui_approval:'🎨 Awaiting approval',
-    ui_approved:'📋 Planning',awaiting_task_approval:'📋 Awaiting approval',
-    executing:'⚙️ Building',complete:'✅ Complete'}[p]||p;
+  return {greeting:'Discovery',awaiting_folder:'Awaiting folder',
+    code_analysis:'Analyzing',code_analysis_done:'Code analyzed',
+    requirements_done:'UI Design',awaiting_ui_approval:'Awaiting approval',
+    ui_approved:'Planning',awaiting_task_approval:'Awaiting approval',
+    executing:'Building',complete:'Complete'}[p]||p;
 }
 
 // ── Init ───────────────────────────────────────────────
 window.onload = async () => {
   await loadSessions();
-  document.getElementById('sidebar-foot').textContent = '🟢 Server running';
   switchTab('structure');
 };
 </script>

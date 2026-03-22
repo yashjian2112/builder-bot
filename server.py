@@ -249,13 +249,41 @@ async def ws_endpoint(websocket: WebSocket, session_id: str):
             # ── Folder path provided ─────────────────────
             elif msg_type == "set_folder":
                 folder = data.get("path", "").strip()
+                source = data.get("source", "local")
                 await pool.send(session_id, {"type": "thinking"})
-                await pool.send(session_id, {
-                    "type": "message",
-                    "role": "assistant",
-                    "content": f"🔍 Analyzing your codebase at `{folder}`... this may take a moment.",
-                    "phase": "code_analysis",
-                })
+
+                # Handle GitHub URL
+                if source == "github" or folder.startswith("https://github.com"):
+                    await pool.send(session_id, {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": f"Fetching GitHub repository `{folder}`... this may take a moment.",
+                        "phase": "code_analysis",
+                    })
+                    import tempfile, subprocess as sp
+                    tmp_dir = tempfile.mkdtemp(prefix="builder_bot_")
+                    clone_result = await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: sp.run(
+                            ["git", "clone", "--depth=1", folder, tmp_dir],
+                            capture_output=True, text=True
+                        )
+                    )
+                    if clone_result.returncode != 0:
+                        await pool.send(session_id, {
+                            "type": "message",
+                            "role": "assistant",
+                            "content": f"Could not clone that repository.\n\nError: {clone_result.stderr[:300]}\n\nMake sure the repo is public and the URL is correct.",
+                            "phase": "awaiting_folder",
+                        })
+                        continue
+                    folder = tmp_dir
+                else:
+                    await pool.send(session_id, {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": f"Analyzing your codebase at `{folder}`... this may take a moment.",
+                        "phase": "code_analysis",
+                    })
 
                 analysis = await asyncio.get_event_loop().run_in_executor(
                     None, lambda: analyze_project(folder)
@@ -265,7 +293,7 @@ async def ws_endpoint(websocket: WebSocket, session_id: str):
                     await pool.send(session_id, {
                         "type": "message",
                         "role": "assistant",
-                        "content": f"❌ Could not read that folder: {analysis['error']}\n\nPlease check the path and try again.",
+                        "content": f"Could not read that folder: {analysis['error']}\n\nPlease check the path and try again.",
                         "phase": "awaiting_folder",
                     })
                     continue
@@ -383,7 +411,7 @@ async def ws_endpoint(websocket: WebSocket, session_id: str):
                         await pool.send(session_id, {
                             "type": "message",
                             "role": "assistant",
-                            "content": "✅ UI approved! Now I'll create the detailed implementation plan...",
+                            "content": "UI approved! Now I'll create the detailed implementation plan...",
                             "phase": "ui_approved",
                         })
 
@@ -441,7 +469,7 @@ async def ws_endpoint(websocket: WebSocket, session_id: str):
                             await pool.send(session_id, {
                                 "type": "message",
                                 "role": "assistant",
-                                "content": "⚠ No task plan found. Please restart the planning phase.",
+                                "content": "No task plan found. Please restart the planning phase.",
                                 "phase": "error",
                             })
                             continue

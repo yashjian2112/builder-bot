@@ -95,12 +95,12 @@ async def _run_with_claude_cli(
         rc = proc.returncode
 
         if rc == 0:
-            yield {"type": "complete", "message": "✅ Task completed successfully"}
+            yield {"type": "complete", "message": "Task completed successfully"}
         else:
-            yield {"type": "error", "message": f"⚠ Claude Code exited with code {rc}"}
+            yield {"type": "error", "message": f"Claude Code exited with code {rc}"}
 
     except Exception as e:
-        yield {"type": "error", "message": f"❌ CLI error: {e}"}
+        yield {"type": "error", "message": f"CLI error: {e}"}
     finally:
         try:
             os.unlink(ctx_path)
@@ -120,7 +120,7 @@ async def _run_with_claude_api(
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     client = anthropic.Anthropic(api_key=api_key)
 
-    yield {"type": "log", "message": "🤖 Running via Claude API (no CLI detected)..."}
+    yield {"type": "log", "message": "Running via Claude API (no CLI detected)..."}
 
     system = (
         "You are an expert software engineer implementing a specific task.\n"
@@ -163,11 +163,11 @@ async def _run_with_claude_api(
             yield {"type": "log", "message": f"💬 {preview}"}
 
         if response.stop_reason == "end_turn":
-            yield {"type": "complete", "message": "✅ Task completed"}
+            yield {"type": "complete", "message": "Task completed"}
             return
 
         if not tool_uses:
-            yield {"type": "complete", "message": "✅ Task completed"}
+            yield {"type": "complete", "message": "Task completed"}
             return
 
         messages.append({"role": "assistant", "content": response.content})
@@ -188,4 +188,4 @@ async def _run_with_claude_api(
 
         messages.append({"role": "user", "content": tool_results})
 
-    yield {"type": "error", "message": "⚠ Hit iteration limit"}
+    yield {"type": "error", "message": "Hit iteration limit"}
