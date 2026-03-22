@@ -6,8 +6,10 @@ Falls back to SQLite when DATABASE_URL is not set.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import secrets
 import sqlite3
 import uuid
 from contextlib import contextmanager
@@ -77,6 +79,7 @@ def _conn():
 
 def init_db() -> None:
     msg_pk = "SERIAL PRIMARY KEY" if IS_PG else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    user_pk = "SERIAL PRIMARY KEY" if IS_PG else "INTEGER PRIMARY KEY AUTOINCREMENT"
     with _conn() as cur:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
@@ -100,6 +103,17 @@ def init_db() -> None:
                 content    TEXT,
                 timestamp  TEXT,
                 metadata   TEXT
+            )
+        """)
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS users (
+                id            {user_pk},
+                username      TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                salt          TEXT NOT NULL,
+                role          TEXT DEFAULT 'member',
+                token         TEXT,
+                created_at    TEXT
             )
         """)
         # Migrate existing DBs that don't have the username column yet
@@ -185,3 +199,75 @@ def get_messages(session_id: str) -> list[dict]:
 def get_conversation_history(session_id: str) -> list[dict]:
     """Returns messages in Claude API format (role + content only)."""
     return [{"role": m["role"], "content": m["content"]} for m in get_messages(session_id)]
+
+
+# ── User / Auth ───────────────────────────────────────────────────────────────
+
+def _hash_password(password: str, salt: str) -> str:
+    return hashlib.sha256((salt + password).encode()).hexdigest()
+
+
+def create_user(username: str, password: str, role: str = "member") -> Optional[dict]:
+    """Returns created user dict or None if username taken."""
+    salt = secrets.token_hex(16)
+    password_hash = _hash_password(password, salt)
+    token = secrets.token_hex(32)
+    now = datetime.now().isoformat()
+    try:
+        with _conn() as cur:
+            cur.execute(
+                "INSERT INTO users (username, password_hash, salt, role, token, created_at) VALUES (?,?,?,?,?,?)",
+                (username, password_hash, salt, role, token, now)
+            )
+        return get_user_by_token(token)
+    except Exception:
+        return None  # username already taken
+
+
+def get_user_by_username(username: str) -> Optional[dict]:
+    with _conn() as cur:
+        return cur.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+
+
+def get_user_by_token(token: str) -> Optional[dict]:
+    if not token:
+        return None
+    with _conn() as cur:
+        return cur.execute("SELECT * FROM users WHERE token=?", (token,)).fetchone()
+
+
+def verify_login(username: str, password: str) -> Optional[dict]:
+    """Returns user dict with fresh token if credentials valid, else None."""
+    user = get_user_by_username(username)
+    if not user:
+        return None
+    expected = _hash_password(password, user["salt"])
+    if expected != user["password_hash"]:
+        return None
+    # Rotate token on login
+    new_token = secrets.token_hex(32)
+    with _conn() as cur:
+        cur.execute("UPDATE users SET token=? WHERE username=?", (new_token, username))
+    user["token"] = new_token
+    return user
+
+
+def list_users() -> list[dict]:
+    with _conn() as cur:
+        return cur.execute("SELECT id, username, role, created_at FROM users ORDER BY created_at").fetchall()
+
+
+def update_user_role(username: str, role: str) -> None:
+    with _conn() as cur:
+        cur.execute("UPDATE users SET role=? WHERE username=?", (role, username))
+
+
+def delete_user(username: str) -> None:
+    with _conn() as cur:
+        cur.execute("DELETE FROM users WHERE username=?", (username,))
+
+
+def user_count() -> int:
+    with _conn() as cur:
+        row = cur.execute("SELECT COUNT(*) as cnt FROM users").fetchone()
+        return row["cnt"] if row else 0
