@@ -787,10 +787,7 @@ function submitFolder() {
 }
 
 function openExistingFromOverlay() {
-  document.getElementById('overlay').classList.add('hidden');
-  startNewSession(()=>{
-    setTimeout(()=>openFolderModal(), 600);
-  });
+  openFolderModal();
 }
 
 // ── Sessions ───────────────────────────────────────────
