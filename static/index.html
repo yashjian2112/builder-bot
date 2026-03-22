@@ -249,18 +249,6 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 
-  /* Overlay */
-  #overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(6px); }
-  #overlay.hidden { display: none; }
-  .overlay-box { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 30px 32px; text-align: center; max-width: 400px; }
-  .overlay-box .logo { font-size: 48px; margin-bottom: 14px; }
-  .overlay-box h2 { font-size: 20px; margin-bottom: 8px; }
-  .overlay-box p  { font-size: 13px; color: var(--muted); margin-bottom: 22px; line-height: 1.6; }
-  .overlay-box .ov-btns { display: flex; gap: 10px; }
-  .ov-btn { flex: 1; padding: 11px; border: none; border-radius: 10px; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
-  .ov-btn:hover { opacity: .85; }
-  .ov-btn.prim { background: var(--accent); color: #fff; }
-  .ov-btn.sec  { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
 </style>
 </head>
 <body>
@@ -304,26 +292,7 @@
   </div>
 </div>
 
-<!-- Launch overlay -->
-<div id="overlay">
-  <div class="overlay-box">
-    <div class="logo">
-      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:#7c6ff7"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v6h6V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="16.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="16.5" r="1.2" fill="currentColor" stroke="none"/></svg>
-    </div>
-    <h2>Builder Bot</h2>
-    <p>Your autonomous AI project engineer.<br>Start a new project or load an existing one.</p>
-    <div class="ov-btns">
-      <button class="ov-btn prim" onclick="startNewSession()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-        New Project
-      </button>
-      <button class="ov-btn sec" onclick="openExistingFromOverlay()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-        Existing App
-      </button>
-    </div>
-  </div>
-</div>
+<!-- Overlay removed: app loads directly to main UI -->
 
 <!-- Left Sidebar -->
 <div id="sidebar">
@@ -667,7 +636,7 @@ function connect(sid) {
   sessionId=sid; execLog=null; progressWrap=null;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/${sid}`);
-  ws.onopen  = () => { setConnected(true); document.getElementById('overlay').classList.add('hidden'); };
+  ws.onopen  = () => { setConnected(true); };
   ws.onclose = () => setConnected(false);
   ws.onmessage = ({data}) => handleMsg(JSON.parse(data));
 }
@@ -847,9 +816,18 @@ function phaseLabel(p) {
     executing:'Building',complete:'Complete'}[p]||p;
 }
 
+function openExistingFromOverlay() { openFolderModal(); }
+
 // ── Init ───────────────────────────────────────────────
 window.onload = async () => {
-  await loadSessions();
+  const sessions = await fetch('/api/sessions').then(r=>r.json());
+  if (sessions.length > 0) {
+    // Resume most recent session
+    await loadSession(sessions[0].id);
+  } else {
+    // Auto-start a fresh session
+    await startNewSession();
+  }
   switchTab('structure');
 };
 </script>
