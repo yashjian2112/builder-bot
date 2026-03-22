@@ -77,6 +77,12 @@ def list_sessions() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def delete_session(session_id: str) -> None:
+    with _conn() as conn:
+        conn.execute("DELETE FROM messages WHERE session_id=?", (session_id,))
+        conn.execute("DELETE FROM sessions WHERE id=?", (session_id,))
+
+
 def update_session(session_id: str, **kwargs) -> None:
     kwargs["updated_at"] = datetime.now().isoformat()
     for key, val in kwargs.items():

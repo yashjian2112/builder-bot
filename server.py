@@ -18,6 +18,7 @@ from typing import List
 from core.memory import (
     init_db, create_session, get_session, list_sessions,
     update_session, add_message, get_conversation_history,
+    delete_session, get_messages,
 )
 from core.conversation import ConversationManager
 from core.code_analyzer import analyze_project, format_for_context
@@ -72,13 +73,30 @@ async def root():
 
 @app.get("/api/sessions")
 async def api_list_sessions():
-    return list_sessions()
+    sessions = list_sessions()
+    # Attach message count to each session
+    for s in sessions:
+        msgs = get_messages(s["id"])
+        s["message_count"] = len([m for m in msgs if m["role"] == "user"])
+    return sessions
 
 
 @app.post("/api/sessions")
 async def api_create_session():
     sid = create_session()
     return {"session_id": sid}
+
+
+@app.delete("/api/session/{sid}")
+async def api_delete_session(sid: str):
+    delete_session(sid)
+    return {"ok": True}
+
+
+@app.post("/api/session/{sid}/name")
+async def api_rename_session(sid: str, body: dict):
+    update_session(sid, name=body.get("name", ""))
+    return {"ok": True}
 
 
 @app.get("/api/session/{sid}")

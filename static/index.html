@@ -89,12 +89,40 @@
   #folder-cancel-btn { background: var(--bg); color: var(--muted); border: 1px solid var(--border) !important; }
   #folder-submit-btn { background: var(--accent); color: #fff; }
 
-  #session-list { flex: 1; overflow-y: auto; padding: 6px 8px; margin-top: 6px; }
-  .session-item { padding: 9px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 2px; transition: background .1s; }
+  /* History search */
+  #history-search-wrap { padding: 6px 10px 4px; }
+  #history-search {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); padding: 6px 10px 6px 28px;
+    font-size: 12px; outline: none;
+  }
+  #history-search:focus { border-color: var(--accent); }
+  .search-wrap { position: relative; }
+  .search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
+
+  #session-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
+  .session-item {
+    padding: 9px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 2px;
+    transition: background .1s; display: flex; align-items: flex-start; gap: 6px;
+    position: relative;
+  }
   .session-item:hover  { background: var(--surface); }
-  .session-item.active { background: var(--surface); }
+  .session-item.active { background: var(--surface); border-left: 2px solid var(--accent); }
+  .session-item .s-info { flex: 1; min-width: 0; }
   .session-item .s-name  { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .session-item .s-phase { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .session-item .s-meta  { font-size: 10px; color: var(--muted); margin-top: 2px; display: flex; gap: 6px; align-items: center; }
+  .session-item .s-phase-badge {
+    font-size: 9px; padding: 1px 5px; border-radius: 20px;
+    background: var(--surface); border: 1px solid var(--border);
+  }
+  .session-item .s-phase-badge.complete { border-color: var(--success); color: var(--success); }
+  .session-item .s-phase-badge.building { border-color: var(--warning); color: var(--warning); }
+  .session-item .s-del {
+    opacity: 0; background: none; border: none; color: var(--error);
+    cursor: pointer; padding: 2px 4px; border-radius: 4px; flex-shrink: 0;
+    transition: opacity .15s;
+  }
+  .session-item:hover .s-del { opacity: 1; }
 
   #sidebar-foot { padding: 10px 12px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); }
 
@@ -314,9 +342,17 @@
   </button>
 
 
+  <div id="history-search-wrap">
+    <div class="search-wrap">
+      <span class="search-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+      <input id="history-search" type="text" placeholder="Search history..." oninput="filterSessions(this.value)">
+    </div>
+  </div>
+  <div style="padding:0 10px 4px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Recent</div>
+
   <div id="session-list"></div>
 
-  <div id="sidebar-foot" id="cli-status"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);margin-right:5px;vertical-align:middle"></span>Server running</div>
+  <div id="sidebar-foot"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);margin-right:5px;vertical-align:middle"></span>Server running</div>
 </div>
 
 <!-- Main -->
@@ -698,6 +734,7 @@ function handleMsg(m) {
 }
 
 // ── Sending ────────────────────────────────────────────
+let _msgCount = 0;
 function sendMessage() {
   const inp = document.getElementById('user-input');
   const txt = inp.value.trim();
@@ -705,6 +742,16 @@ function sendMessage() {
   appendMessage('user',txt);
   ws.send(JSON.stringify({type:'message',content:txt}));
   inp.value=''; autoResize(inp);
+  // Auto-name session from first user message
+  _msgCount++;
+  if (_msgCount === 1 && sessionId) {
+    const name = txt.slice(0, 40) + (txt.length > 40 ? '...' : '');
+    fetch(`/api/session/${sessionId}/name`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name})
+    }).then(() => loadSessions(sessionId));
+  }
 }
 function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px'; }
@@ -806,7 +853,7 @@ async function startNewSession(cb) {
   const res = await fetch('/api/sessions',{method:'POST'});
   const {session_id} = await res.json();
   document.getElementById('chat-area').innerHTML='';
-  projectStructure={}; taskPlan=[];
+  projectStructure={}; taskPlan=[]; _msgCount=0;
   document.getElementById('structure-tree').innerHTML=
     '<div style="color:var(--muted);font-size:11px;padding:8px 0">Structure will appear as files are created...</div>';
   document.getElementById('tasks-panel').innerHTML='';
@@ -826,18 +873,61 @@ async function loadSession(sid) {
   loadSessions(sid);
 }
 
+let _allSessions = [];
+
 async function loadSessions(activeSid) {
   const res = await fetch('/api/sessions');
-  const sessions = await res.json();
+  _allSessions = await res.json();
+  renderSessionList(_allSessions, activeSid || sessionId);
+}
+
+function renderSessionList(sessions, activeSid) {
   const list = document.getElementById('session-list');
-  list.innerHTML='';
-  sessions.forEach(s=>{
-    const d=document.createElement('div');
-    d.className='session-item'+(s.id===activeSid?' active':'');
-    d.innerHTML=`<div class="s-name">${esc(s.name||s.id)}</div><div class="s-phase">${phaseLabel(s.phase||'greeting')}</div>`;
-    d.onclick=()=>loadSession(s.id);
+  list.innerHTML = '';
+  if (!sessions.length) {
+    list.innerHTML = '<div style="padding:12px 10px;font-size:11px;color:var(--muted)">No conversations yet</div>';
+    return;
+  }
+  sessions.forEach(s => {
+    const phase = s.phase || 'greeting';
+    const badgeClass = phase === 'complete' ? 'complete' : phase === 'executing' ? 'building' : '';
+    const label = phaseLabel(phase);
+    const date = s.updated_at ? new Date(s.updated_at).toLocaleDateString(undefined,{month:'short',day:'numeric'}) : '';
+    const msgs = s.message_count || 0;
+
+    const d = document.createElement('div');
+    d.className = 'session-item' + (s.id === activeSid ? ' active' : '');
+    d.innerHTML = `
+      <div class="s-info" onclick="loadSession('${s.id}')">
+        <div class="s-name">${esc(s.name || 'Project ' + s.id)}</div>
+        <div class="s-meta">
+          <span class="s-phase-badge ${badgeClass}">${label}</span>
+          ${msgs ? `<span>${msgs} msg${msgs!==1?'s':''}</span>` : ''}
+          ${date ? `<span>${date}</span>` : ''}
+        </div>
+      </div>
+      <button class="s-del" title="Delete" onclick="deleteSession('${s.id}',event)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </button>`;
     list.appendChild(d);
   });
+}
+
+function filterSessions(query) {
+  const q = query.toLowerCase();
+  const filtered = q ? _allSessions.filter(s => (s.name||'').toLowerCase().includes(q) || s.id.includes(q)) : _allSessions;
+  renderSessionList(filtered, sessionId);
+}
+
+async function deleteSession(sid, e) {
+  e.stopPropagation();
+  if (!confirm('Delete this conversation?')) return;
+  await fetch(`/api/session/${sid}`, { method: 'DELETE' });
+  if (sid === sessionId) {
+    // If deleting current session, start fresh
+    await startNewSession();
+  }
+  await loadSessions(sessionId);
 }
 
 function phaseLabel(p) {
