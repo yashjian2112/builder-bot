@@ -90,6 +90,7 @@ def _conn():
 def init_db() -> None:
     msg_pk = "SERIAL PRIMARY KEY" if IS_PG else "INTEGER PRIMARY KEY AUTOINCREMENT"
     user_pk = "SERIAL PRIMARY KEY" if IS_PG else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    # Create all tables in one transaction
     with _conn() as cur:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
@@ -126,11 +127,12 @@ def init_db() -> None:
                 created_at    TEXT
             )
         """)
-        # Migrate existing DBs that don't have the username column yet
-        try:
+    # Migrate existing DBs — separate connection so failure doesn't roll back table creation
+    try:
+        with _conn() as cur:
             cur.execute("ALTER TABLE sessions ADD COLUMN username TEXT DEFAULT ''")
-        except Exception:
-            pass  # Column already exists — ignore
+    except Exception:
+        pass  # Column already exists — ignore
 
 
 # ── Session CRUD ─────────────────────────────────────────────────────────────
